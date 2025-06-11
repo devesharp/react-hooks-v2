@@ -3,12 +3,12 @@ import { IFetchProps, Resolver, useFetch } from "./useFetch";
 
 // Interface para os resolvers do formulário
 export interface IFetchFormProps<
-  T extends Record<string, any>,
-  R extends Record<string, Resolver> = {}
-> extends Omit<IFetchProps<any>, "resolvers"> {
+  T extends Record<string, unknown>,
+  R extends Record<string, Resolver> = Record<string, Resolver>  
+> extends Omit<IFetchProps<Record<string, Resolver>>, "resolvers"> {
   id?: string | number | null;
   resolvers: {
-    get?: Resolver<T>;
+    get?: (id: string | number) => T | Promise<T>;
     update?: (id: string | number, data: Partial<T>) => T | Promise<T>;
     create?: (data: Partial<T>) => T | Promise<T>;
   } & R; // Permite resolvers adicionais customizados
@@ -22,8 +22,8 @@ export interface IFetchFormProps<
 }
 
 export function useFetchForm<
-  T extends Record<string, any>,
-  R extends Record<string, Resolver> = {}
+  T extends Record<string, unknown>,
+  R extends Record<string, Resolver> = Record<string, Resolver>
 >({
   id,
   resolvers,
@@ -43,11 +43,17 @@ export function useFetchForm<
   // Separa os resolvers especiais dos customizados
   const { get, update, create, ...customResolvers } = resolvers;
 
-  // Cria os resolvers para o useFetch incluindo get e resolvers customizados
-  const fetchResolvers = {
-    ...(get && { get }),
-    ...customResolvers,
-  };
+  // Cria os resolvers para o useFetch incluindo get (com wrapper se necessário) e resolvers customizados
+  const fetchResolvers = useMemo(() => {
+    const resolversForFetch: Record<string, Resolver> = { ...customResolvers };
+    
+    // Se temos get e id, cria um wrapper que chama get(id)
+    if (get && id !== null && id !== undefined) {
+      resolversForFetch.get = () => get(id);
+    }
+    
+    return resolversForFetch;
+  }, [get, id, customResolvers]);
 
   const fetch = useFetch({
     resolvers: fetchResolvers,
@@ -153,7 +159,7 @@ export function useFetchForm<
       setSubmitError(null);
 
       try {
-        let result: T;
+        let result: T | undefined;
 
         if (isUpdate && update) {
           // Para update, sempre passa (id, data)
@@ -161,20 +167,22 @@ export function useFetchForm<
 
           if (functionResult instanceof Promise) {
             result = await functionResult;
+          } else {
+            result = functionResult;
           }
         } else if (!isUpdate && create) {
           // Para create, executa o resolver normalmente
-          const functionResult = create(dataToSubmit as T);
+          const functionResult = create(dataToSubmit);
 
           if (functionResult instanceof Promise) {
             result = await functionResult;
+          } else {
+            result = functionResult;
           }
-        } else {
-          throw new Error("Resolver inválido");
         }
 
         if (!result) {
-          throw new Error("Resolver inválido");
+          throw new Error("Resolver retornou resultado inválido");
         }
 
         // Aplica transformação no resultado se fornecida
@@ -224,15 +232,15 @@ export function useFetchForm<
       }
       throw new Error(`Resolver '${String(resolverKey)}' não encontrado`);
     },
-    [customResolvers, fetch.reloadFetch]
+    [customResolvers, fetch]
   );
 
   // Carrega os dados iniciais se temos um ID e um resolver get
   useEffect(() => {
-    if (id && get) {
+    if (id !== null && id !== undefined && get) {
       fetch.onReload(false);
     }
-  }, [id, get]);
+  }, [id, get]); // Removido fetch das dependências para evitar loop infinito
 
   // Função para integração com react-hook-form ou outros gerenciadores
   const getFormProps = useCallback(

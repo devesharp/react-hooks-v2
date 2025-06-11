@@ -1,5 +1,6 @@
 // Exemplo de uso do useFetchForm
 
+import React from 'react'
 import { useFetchForm } from '../useFetchForm'
 
 // Tipo do usuário para exemplo
@@ -58,7 +59,7 @@ export function CreateUserExample() {
     }
   }
 
-  const handleInputChange = (field: keyof User, value: any) => {
+  const handleInputChange = (field: keyof User, value: unknown) => {
     form.updateData({ [field]: value })
   }
 
@@ -78,9 +79,9 @@ export function EditUserExample(userId: number) {
     // Com ID = modo edição
     id: userId,
     resolvers: {
-      get: async () => {
+      get: async (id) => {
         // Busca os dados do usuário
-        const response = await fetch(`/api/users/${userId}`)
+        const response = await fetch(`/api/users/${id}`)
         return response.json()
       },
       // Update agora recebe (id, data) como parâmetros
@@ -128,8 +129,8 @@ export function CustomResolversExample(userId: number) {
   }>({
     id: userId,
     resolvers: {
-      get: async () => {
-        const response = await fetch(`/api/users/${userId}`)
+      get: async (id) => {
+        const response = await fetch(`/api/users/${id}`)
         return response.json()
       },
       update: async (id, data) => {
@@ -246,8 +247,8 @@ export function CompleteUserFormExample(userId?: number) {
   }>({
     id: userId || null,
     resolvers: {
-      get: userId ? async () => {
-        const response = await fetch(`/api/users/${userId}`)
+      get: userId ? async (id) => {
+        const response = await fetch(`/api/users/${id}`)
         return response.json()
       } : undefined,
       
@@ -345,9 +346,9 @@ export function TransformDataExample(userId?: number) {
   const form = useFetchForm<User>({
     id: userId || null,
     resolvers: {
-      get: async () => {
+      get: async (id) => {
         // API retorna dados em formato diferente
-        const response = await fetch(`/api/users/${userId}`)
+        const response = await fetch(`/api/users/${id}`)
         return response.json() as UserAPI
       },
       create: async () => {
@@ -513,8 +514,8 @@ export function FormWithWarningsExample(userId?: number) {
   }>({
     id: userId || null,
     resolvers: {
-      get: userId ? async () => {
-        const response = await fetch(`/api/users/${userId}`)
+      get: userId ? async (id) => {
+        const response = await fetch(`/api/users/${id}`)
         return response.json()
       } : undefined,
       
@@ -845,7 +846,7 @@ export function PerformanceComparisonExample() {
   }
 
   // Exemplo de atualização otimizada
-  const handleOptimizedUpdate = (field: keyof User, value: any) => {
+  const handleOptimizedUpdate = (field: keyof User, value: unknown) => {
     // Atualiza apenas a chave específica, não o objeto inteiro
     form.updateDataKey(field, value)
   }
@@ -883,7 +884,7 @@ export function ManualRefreshExample() {
     
     // Se por algum motivo o isUpdateData não foi recalculado corretamente,
     // você pode forçar o recálculo (raramente necessário)
-    if (form.isUpdateData === false && /* alguma condição */) {
+    if (form.isUpdateData === false && /* alguma condição */ true) {
       form.refreshUpdateDataCheck()
     }
   }
