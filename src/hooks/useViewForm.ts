@@ -1,8 +1,4 @@
-import {
-  useRef,
-  useEffect,
-  useCallback,
-} from "react";
+import { useRef, useEffect, useCallback } from "react";
 import cloneDeep from "clone-deep";
 import isPromise from "is-promise";
 import { useImmer, useImmerReducer } from "use-immer";
@@ -22,7 +18,8 @@ import {
 
 export function useViewForm<
   DataForm = unknown,
-  IDType = string | number
+  IDType = string | number,
+  TResolves extends Record<string, IResolve> = Record<string, IResolve>
 >({
   id,
   onStarted,
@@ -39,11 +36,13 @@ export function useViewForm<
   onErrorData,
   validateData,
   handleInsertForm = (v) => v as Partial<DataForm>,
-  resolves = {},
+  resolves = {} as TResolves,
   firstLoad = true,
-}: IUseViewFormProps<DataForm, IDType>) {
+}: IUseViewFormProps<DataForm, IDType, TResolves>) {
   // Se houver ID, faz primeira request
-  const resolvesForm = { ...resolves };
+  const resolvesForm: TResolves & {
+    get?: IResolve;
+  } = { ...resolves };
 
   if (id && resolveGet) resolvesForm.get = () => resolveGet(id);
 
@@ -61,15 +60,14 @@ export function useViewForm<
     setStatusInfo,
     reloadPage: reloadPageView,
     resolvesResponse,
-  } = useView<{
-    get?: IResolve;
-    [key: string]: IResolve;
-  }>({
+  } = useView<typeof resolvesForm>({
     resolves: resolvesForm,
     firstLoad,
     onStarted: (s) => {
       onStarted?.(s);
-      onStartedForm(s.get as IExtractResolverType<T["get"]> | undefined);
+      onStartedForm(
+        s.get as IExtractResolverType<TResolves["get"]> | undefined
+      );
     },
     onErrorStarted: (e) => {
       onErrorStarted?.(e);
@@ -104,11 +102,11 @@ export function useViewForm<
     setResource((r) => {
       const res = cloneDeep(r ?? {});
 
-      (keyDot as string).split(".").reduce((o, i, index, arr) => {
+      (keyDot as string).split(".").reduce((o: unknown, i: string, index: number, arr: string[]) => {
         if (index === arr.length - 1) {
-          o[i] = value;
-        } else if (!o[i]) o[i] = {};
-        return o[i];
+          (o as Record<string, unknown>)[i] = value;
+        } else if (!(o as Record<string, unknown>)[i]) (o as Record<string, unknown>)[i] = {};
+        return (o as Record<string, unknown>)[i];
       }, res ?? {});
 
       return res;
@@ -118,22 +116,23 @@ export function useViewForm<
   function getField<K extends IPaths<DataForm>>(keyDot: K) {
     return (keyDot as string)
       .split(".")
-      .reduce((o, i) => (o ? o[i] : undefined), resource) as IPathValue<
-      DataForm,
-      K
-    >;
+      .reduce(
+        (o: unknown, i: string) =>
+          o ? (o as Record<string, unknown>)[i] : undefined,
+        resource
+      ) as IPathValue<DataForm, K>;
   }
 
   function getOriginalField<K extends IPaths<DataForm>>(keyDot: K) {
-    return (keyDot as string)
-      .split(".")
-      .reduce((o, i) => (o ? o[i] : undefined), originalResource) as IPathValue<
-      DataForm,
-      K
-    >;
+    return (keyDot as string).split(".").reduce((o: unknown, i: string) => {
+      if (o && typeof o === "object" && i in o) {
+        return (o as Record<string, unknown>)[i];
+      }
+      return undefined;
+    }, originalResource) as IPathValue<DataForm, K>;
   }
 
-  function onStartedForm(get?: IExtractResolverType<T["get"]>) {
+  function onStartedForm(get?: IExtractResolverType<TResolves["get"]>) {
     if (get) {
       setResource(() => handleInsertForm({ ...get }));
       setOriginalResource(() => ({ ...(get ?? {}) } as DataForm));
@@ -149,7 +148,7 @@ export function useViewForm<
     });
   }
 
-  function onErrorStartedForm(error: { [K in keyof T]?: Error }) {
+  function onErrorStartedForm(error: { [K in keyof TResolves]?: Error }) {
     if (error.get) {
       // Verificar se é erro do Axios
       if (
@@ -232,9 +231,9 @@ export function useViewForm<
           if (onSuccess)
             onSuccess(
               resultAction as
-                | IExtractResolverType<T["create"]>
-                | IExtractResolverType<T["update"]>
-                | IExtractResolverType<T["action"]>,
+                | IExtractResolverType<TResolves["create"]>
+                | IExtractResolverType<TResolves["update"]>
+                | IExtractResolverType<TResolves["action"]>,
               true
             );
 
@@ -252,9 +251,9 @@ export function useViewForm<
         if (onSuccess)
           onSuccess(
             newData as
-              | IExtractResolverType<T["create"]>
-              | IExtractResolverType<T["update"]>
-              | IExtractResolverType<T["action"]>,
+              | IExtractResolverType<TResolves["create"]>
+              | IExtractResolverType<TResolves["update"]>
+              | IExtractResolverType<TResolves["action"]>,
             true
           );
       }
@@ -271,9 +270,9 @@ export function useViewForm<
           if (onSuccess)
             onSuccess(
               resultAction as
-                | IExtractResolverType<T["create"]>
-                | IExtractResolverType<T["update"]>
-                | IExtractResolverType<T["action"]>,
+                | IExtractResolverType<TResolves["create"]>
+                | IExtractResolverType<TResolves["update"]>
+                | IExtractResolverType<TResolves["action"]>,
               true
             );
 
@@ -281,10 +280,12 @@ export function useViewForm<
           if (updateResourceOnSave) {
             if (resultAction) {
               setResource(() =>
-                handleInsertForm(resultAction as IExtractResolverType<T["get"]>)
+                handleInsertForm(
+                  resultAction as IExtractResolverType<TResolves["get"]>
+                )
               );
               setOriginalResource(
-                () => resultAction as IExtractResolverType<T["get"]>
+                () => resultAction as IExtractResolverType<TResolves["get"]>
               );
             }
           }
@@ -303,9 +304,9 @@ export function useViewForm<
         if (onSuccess)
           onSuccess(
             newData as
-              | IExtractResolverType<T["create"]>
-              | IExtractResolverType<T["update"]>
-              | IExtractResolverType<T["action"]>,
+              | IExtractResolverType<TResolves["create"]>
+              | IExtractResolverType<TResolves["update"]>
+              | IExtractResolverType<TResolves["action"]>,
             false
           );
       }
@@ -329,14 +330,14 @@ export function useViewForm<
   const reloadPage = useCallback(
     async function reloadPage(
       wait1s = true
-    ): Promise<Partial<IResolvedValues<T>>> {
+    ): Promise<Partial<IResolvedValues<TResolves>>> {
       setStatusInfoForm({
         isSaving: false,
         isNotFound: false,
         isNotAuthorization: false,
       });
 
-      return reloadPageView(wait1s) as Partial<IResolvedValues<T>>;
+      return reloadPageView(wait1s) as Partial<IResolvedValues<TResolves>>;
     },
     [reloadPageView]
   );

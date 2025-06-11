@@ -55,8 +55,8 @@ export type IPathValue<
 export interface IUseViewFormProps<
   DataForm = unknown,
   IDType = string | number,
-  T extends Record<string, IResolve> = Record<string, IResolve>
-> extends IUseViewProps<T> {
+  TResolves extends Record<string, IResolve> = Record<string, IResolve>
+> extends IUseViewProps<TResolves> {
   /**
    * Id do resource
    *
@@ -80,7 +80,7 @@ export interface IUseViewFormProps<
    * formRef.current.setData
    */
   handleInsertForm?: (
-    v?: IExtractResolverType<T["get"]>
+    v?: IExtractResolverType<TResolves["get"]>
   ) => Partial<DataForm> | Promise<Partial<DataForm>>;
 
   /**
@@ -91,12 +91,12 @@ export interface IUseViewFormProps<
   /**
    * Resolve para criar resource
    */
-  resolveCreate?: IResolve<unknown, unknown>;
+  resolveCreate?: IResolve<unknown, [unknown]>;
 
   /**
    * Alias de resolveCreate
    */
-  resolveAction?: IResolve<unknown, unknown>;
+  resolveAction?: IResolve<unknown, [unknown]>;
 
   /**
    * Resolve para para atualizar resource
@@ -115,15 +115,15 @@ export interface IUseViewFormProps<
     | ((
         formData: Partial<DataForm>
       ) =>
-        | FirstParam<T["create"]>
-        | SecondParam<T["update"]>
-        | FirstParam<T["action"]>)
+        | FirstParam<TResolves["create"]>
+        | SecondParam<TResolves["update"]>
+        | FirstParam<TResolves["action"]>)
     | ((
         formData: Partial<DataForm>
       ) => Promise<
-        | FirstParam<T["create"]>
-        | SecondParam<T["update"]>
-        | FirstParam<T["action"]>
+        | FirstParam<TResolves["create"]>
+        | SecondParam<TResolves["update"]>
+        | FirstParam<TResolves["action"]>
       >);
 
   /**
@@ -138,9 +138,9 @@ export interface IUseViewFormProps<
    */
   validateData?: (
     formData:
-      | FirstParam<T["create"]>
-      | SecondParam<T["update"]>
-      | FirstParam<T["action"]>
+      | FirstParam<TResolves["create"]>
+      | SecondParam<TResolves["update"]>
+      | FirstParam<TResolves["action"]>
       | Partial<DataForm>
   ) => Record<string, string> | Promise<Record<string, string>>;
 
@@ -149,9 +149,9 @@ export interface IUseViewFormProps<
    */
   onSuccess?: (
     resp:
-      | IExtractResolverType<T["create"]>
-      | IExtractResolverType<T["update"]>
-      | IExtractResolverType<T["action"]>,
+      | IExtractResolverType<TResolves["create"]>
+      | IExtractResolverType<TResolves["update"]>
+      | IExtractResolverType<TResolves["action"]>,
     creating: boolean
   ) => void;
 

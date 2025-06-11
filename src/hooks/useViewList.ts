@@ -221,6 +221,18 @@ export function useViewList<
   }
 
   /**
+   * Navega para uma página específica.
+   * @param page Número da página (começando em 0)
+   */
+  function setPage(page: number) {
+    // Garante que a página não seja negativa
+    const safePage = Math.max(0, page);
+    // Calcula o offset baseado na página e no limite
+    const newOffset = safePage * limit;
+    runSearchWithFilters({ ...filters, offset: newOffset }, filters.offset);
+  }
+
+  /**
    * Tenta novamente a última requisição que falhou (ou a última executada).
    */
   function retry() {
@@ -385,6 +397,7 @@ export function useViewList<
     setFilters,
     nextPage,
     previousPage,
+    setPage,
     retry,
     pushResource,
     updateResource,

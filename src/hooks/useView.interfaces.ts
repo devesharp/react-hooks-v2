@@ -12,7 +12,7 @@ export type IExtractResolverType<T> = T extends () => infer R
   ? U
   : never
 
-export type IResolvedValues<T extends Record<string, IResolve>> = {
+export type IResolvedValues<T extends Record<string, IResolve | undefined>> = {
    [K in keyof T]: IExtractResolverType<T[K]>
  }
 

@@ -199,6 +199,129 @@ function UserProfile({ userId }: { userId: string }) {
 }
 ```
 
+### useViewList
+
+Hook avançado para gerenciar listas de recursos com paginação, filtros e manipulação de dados.
+
+```typescript
+import { useViewList } from 'my-hooks-lib'
+
+interface User {
+  id: number
+  name: string
+  email: string
+  status: 'active' | 'inactive'
+}
+
+interface UserFilter {
+  search?: string
+  status?: 'active' | 'inactive'
+}
+
+function UserListComponent() {
+  const {
+    resources,
+    resourcesTotal,
+    filters,
+    statusInfoList,
+    setFilters,
+    nextPage,
+    previousPage,
+    setPage,
+    retry,
+    pushResource,
+    updateResource,
+    deleteResource
+  } = useViewList<User, UserFilter>({
+    resolveResources: async (filters) => {
+      const response = await fetch(`/api/users?${new URLSearchParams(filters)}`)
+      return response.json() // { results: User[], count: number }
+    },
+    limit: 20,
+    initialFilters: { status: 'active' },
+    onErrorSearch: (error) => console.error('Erro na busca:', error)
+  })
+
+  return (
+    <div>
+      {/* Filtros */}
+      <input
+        placeholder="Buscar usuários..."
+        onChange={(e) => setFilters({ search: e.target.value })}
+      />
+      
+      {/* Lista de recursos */}
+      {statusInfoList.isSearching ? (
+        <div>Carregando...</div>
+      ) : (
+        <div>
+          {resources.map(user => (
+            <div key={user.id}>
+              <h3>{user.name}</h3>
+              <p>{user.email}</p>
+              <button onClick={() => deleteResource(user.id)}>
+                Remover
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Paginação */}
+      <div>
+        <button 
+          onClick={previousPage} 
+          disabled={statusInfoList.isFirstPage}
+        >
+          Anterior
+        </button>
+        
+        <button onClick={() => setPage(0)}>Página 1</button>
+        <button onClick={() => setPage(1)}>Página 2</button>
+        <button onClick={() => setPage(2)}>Página 3</button>
+        
+        <button 
+          onClick={nextPage} 
+          disabled={statusInfoList.isLastPage}
+        >
+          Próxima
+        </button>
+      </div>
+
+      <p>Total: {resourcesTotal} usuários</p>
+    </div>
+  )
+}
+```
+
+#### Principais Funcionalidades
+
+**Navegação:**
+- `nextPage()`: Avança para a próxima página
+- `previousPage()`: Volta para a página anterior  
+- `setPage(pageNumber)`: Navega para uma página específica (começando em 0)
+- `retry()`: Tenta novamente a última requisição que falhou
+
+**Filtros:**
+- `setFilters(newFilters)`: Atualiza filtros e reinicia a busca
+- `filters`: Estado atual dos filtros (inclui offset para paginação)
+
+**Manipulação de Recursos:**
+- `pushResource(resource)`: Adiciona um novo recurso à lista
+- `updateResource(id, resource)`: Substitui completamente um recurso
+- `putResource(id, partialResource)`: Atualiza parcialmente um recurso
+- `deleteResource(id)`: Remove um recurso da lista
+- `deleteManyResources(ids)`: Remove múltiplos recursos
+- `changePosition(id, newPosition)`: Altera a posição de um recurso
+
+**Estados:**
+- `statusInfoList.isSearching`: Indica se uma busca está em andamento
+- `statusInfoList.isErrorOnSearching`: Indica se houve erro na busca
+- `statusInfoList.isFirstPage`: Indica se está na primeira página
+- `statusInfoList.isLastPage`: Indica se está na última página
+
+```
+
 ## 🛠️ Desenvolvimento
 
 ### Scripts Disponíveis

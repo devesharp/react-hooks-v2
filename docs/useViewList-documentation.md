@@ -1,0 +1,373 @@
+# useViewList – Documentação Completa
+
+> Guia definitivo para carregar, paginar e gerenciar **listas** em React + TypeScript com o hook `useViewList`.
+
+---
+
+## 1. Visão Geral
+
+`useViewList` encapsula toda a complexidade de **busca, paginação, filtros** e **manipulação local** de coleções. Por baixo do capô ele utiliza `useView` para o _first-load_, mas expõe uma API otimizada para:
+
+1. Buscar recursos paginados (limit / offset);
+2. Trocar filtros dinamicamente sem _boilerplate_;
+3. Avançar / voltar páginas e fazer _retry_ automático;
+4. Manipular localmente a lista (add, update, delete, reorder…).
+
+Ideal para tabelas, _infinite scrolls_ ou qualquer listagem paginada que precise de **estado robusto** e **tratamento de erros**.
+
+---
+
+## 2. Tipos e Assinatura
+
+```ts
+useViewList<
+  IResource extends { id: string | number },
+  IFilter = Record<string, unknown>,
+  TResolves extends Record<string, IResolve> = Record<string, IResolve>
+>(props: IUseViewListProps<IResource, IFilter, TResolves>)
+```
+
+### 2.1. `IUseViewListProps`
+
+| Prop | Tipo | Descrição |
+|------|------|-----------|
+| `resolveResources*` | `IResolve<IResponseResults<IResource>>` | Função/Promise que retorna `{ results, count }`. |
+| `limit` | `number` | Tamanho da página (default `20`). |
+| `initialOffset` | `number` | Offset inicial (default `0`). |
+| `filtersDefault` | `Partial<IFilter>` | Filtros base aplicados a TODAS as buscas. |
+| `initialFilters` | `Partial<IFilter>` | Filtros iniciais adicionais. |
+| `treatmentResources` | `(items) ⇒ IResource[]` | Manipula a lista antes de salvar no estado (ex.: _map_, _sort_). |
+| `onStarted` / `onErrorStarted` | Callbacks herdados de `useView`. |
+| `onErrorSearch` | `(err: Error) ⇒ void` | Invocado em erro durante buscas subsequentes. |
+| `resolves` | `TResolves` | Resolvers extras executados junto com `resolveResources`. |
+| `firstLoad` | `boolean` | Se faz a busca inicial automática (default `true`). |
+
+> **Obrigatório**: `resolveResources`.
+
+### 2.2. Retorno do Hook
+
+| Campo | Tipo | Finalidade |
+|-------|------|------------|
+| `resources` | `IResource[]` | Lista atual. |
+| `resourcesTotal` | `number` | Total fornecido por `count`. |
+| `filters` | `{ offset:number } & Partial<IFilter>` | Filtros vigentes. |
+| `statusInfoList` | `IStatusInfoViewList` | Estados de busca/paginação (👇). |
+| `statusInfo` / `setStatusInfo` / `resolvesResponse` | Herdados de `useView`. |
+| **Busca & Navegação** |
+| `setFilters(filters, opts?)` | Busca com filtros novos. `opts.force` ignora comparação. |
+| `nextPage()` / `previousPage()` | Paginação forward/backward. |
+| `setPage(pageNumber)` | Navega para página específica (começando em 0). |
+| `retry()` | Reexecuta a última busca que falhou. |
+| `reloadPage()` | _Hard refresh_ via `useView`. |
+| **Manipulação Local** |
+| `pushResource(item, push?)` | Adiciona no fim (`push=true`) ou início. |
+| `updateResource(id, item)` | Substitui item inteiro. |
+| `putResource(id, partial)` | Merge parcial. |
+| `deleteResource(id)` | Remove 1 item. |
+| `deleteManyResources(ids[])` | Remove vários. |
+| `changePosition(id, idx)` | Move item para posição. |
+| `putManyResource(partial, ids?)` | Merge em vários (ou todos). |
+
+#### `IStatusInfoViewList`
+
+```ts
+{
+  isSearching: boolean;       // true enquanto busca em progresso
+  isErrorOnSearching: boolean;// true se última busca falhou
+  isFirstPage: boolean;       // true se offset === 0
+  isLastPage: boolean;        // true se offset+limit >= total
+  // + flags de IStatusInfo (carregamento inicial)
+}
+```
+
+---
+
+## 3. Exemplos Práticos
+
+### 3.1. Lista Básica com Filtros
+
+```tsx
+interface Product { id:number; name:string; price:number; }
+interface ProductFilter { search?:string; min?:number; max?:number; }
+
+export default function ProductList() {
+  const {
+    resources, resourcesTotal, filters,
+    statusInfoList: { isSearching, isErrorOnSearching, isFirstPage, isLastPage },
+    setFilters, nextPage, previousPage, setPage
+  } = useViewList<Product, ProductFilter>({
+    resolveResources: ({ offset, ...filtros }) =>
+      api.get('/products', { params: { offset, limit: 20, ...filtros } })
+         .then(res => res.data),
+    filtersDefault: { min: 0 },
+  });
+
+  return (
+    <div>
+      <input
+        placeholder="Buscar…"
+        onChange={e => setFilters({ search: e.target.value })}
+      />
+
+      {isSearching && <p>Carregando…</p>}
+      {isErrorOnSearching && <p>Erro na busca 😢</p>}
+
+      <ul>
+        {resources.map(p => (
+          <li key={p.id}>{p.name} – R$ {p.price}</li>
+        ))}
+      </ul>
+
+      <div>
+        <button onClick={previousPage} disabled={isFirstPage}>Anterior</button>
+        <button onClick={() => setPage(0)}>Página 1</button>
+        <button onClick={() => setPage(1)}>Página 2</button>
+        <button onClick={() => setPage(2)}>Página 3</button>
+        <button onClick={nextPage} disabled={isLastPage}>Próxima</button>
+      </div>
+
+      <p>{resources.length} / {resourcesTotal}</p>
+    </div>
+  );
+}
+```
+
+### 3.2. _Infinite Scroll_
+
+```tsx
+function InfiniteUsers() {
+  const {
+    resources, statusInfoList: { isSearching, isLastPage },
+    nextPage
+  } = useViewList<User>({
+    limit: 50,
+    resolveResources: ({ offset }) =>
+      api.get('/users', { params: { offset, limit: 50 } }).then(r => r.data),
+  });
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100 && !isSearching && !isLastPage) {
+        nextPage();
+      }
+    };
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isSearching, isLastPage, nextPage]);
+
+  return (
+    <div>
+      {resources.map(u => <UserCard key={u.id} user={u} />)}
+      {isSearching && <Loader />}
+    </div>
+  );
+}
+```
+
+### 3.3. Navegação por Páginas Específicas
+
+```tsx
+function PaginatedTable() {
+  const {
+    resources, resourcesTotal,
+    statusInfoList: { isSearching, isFirstPage, isLastPage },
+    nextPage, previousPage, setPage, filters
+  } = useViewList<Item>({
+    limit: 10,
+    resolveResources: ({ offset }) =>
+      api.get('/items', { params: { offset, limit: 10 } }).then(r => r.data),
+  });
+
+  // Calcula informações de paginação
+  const currentPage = Math.floor(filters.offset / 10);
+  const totalPages = Math.ceil(resourcesTotal / 10);
+
+  return (
+    <div>
+      <table>
+        {/* Renderiza tabela */}
+      </table>
+
+      <div className="pagination">
+        <button onClick={previousPage} disabled={isFirstPage}>
+          ← Anterior
+        </button>
+
+        {/* Páginas numeradas */}
+        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          const pageNum = currentPage < 3 ? i : currentPage - 2 + i;
+          if (pageNum >= totalPages) return null;
+          
+          return (
+            <button
+              key={pageNum}
+              onClick={() => setPage(pageNum)}
+              className={pageNum === currentPage ? 'active' : ''}
+            >
+              {pageNum + 1}
+            </button>
+          );
+        })}
+
+        <button onClick={nextPage} disabled={isLastPage}>
+          Próxima →
+        </button>
+      </div>
+
+      <p>
+        Página {currentPage + 1} de {totalPages} 
+        ({resources.length} de {resourcesTotal} itens)
+      </p>
+    </div>
+  );
+}
+```
+
+### 3.4. Manipulação Local Instantânea
+
+```tsx
+// Após criar item no servidor, já insere na lista sem refazer busca
+onSuccess: (novo) => pushResource(novo, false);
+
+// Otimistic update
+putResource(id, { name: 'Renomeando…' });
+api.put(`/items/${id}`, { name });
+```
+
+---
+
+## 4. Navegação por Páginas com `setPage()`
+
+A função `setPage()` permite navegar diretamente para uma página específica, calculando automaticamente o offset correto.
+
+### 4.1. Como Funciona
+
+```tsx
+// Página começa em 0
+setPage(0); // Primeira página (offset = 0)
+setPage(1); // Segunda página (offset = limit * 1)
+setPage(2); // Terceira página (offset = limit * 2)
+```
+
+### 4.2. Características
+
+- **Páginas começam em 0**: A primeira página é `setPage(0)`
+- **Cálculo automático**: `offset = página × limit`
+- **Proteção contra valores negativos**: `setPage(-1)` vira `setPage(0)`
+- **Usa a mesma lógica de erro**: Se falhar, permite `retry()`
+
+### 4.3. Exemplo Prático com Paginação Numérica
+
+```tsx
+function NumberedPagination() {
+  const { filters, resourcesTotal, setPage } = useViewList({
+    limit: 20,
+    resolveResources: fetchData
+  });
+
+  const currentPage = Math.floor(filters.offset / 20);
+  const totalPages = Math.ceil(resourcesTotal / 20);
+
+  return (
+    <div className="pagination">
+      {/* Primeira página */}
+      <button 
+        onClick={() => setPage(0)}
+        disabled={currentPage === 0}
+      >
+        Primeira
+      </button>
+
+      {/* Páginas numeradas */}
+      {Array.from({ length: totalPages }, (_, index) => (
+        <button
+          key={index}
+          onClick={() => setPage(index)}
+          className={index === currentPage ? 'active' : ''}
+        >
+          {index + 1}
+        </button>
+      ))}
+
+      {/* Última página */}
+      <button 
+        onClick={() => setPage(totalPages - 1)}
+        disabled={currentPage === totalPages - 1}
+      >
+        Última
+      </button>
+    </div>
+  );
+}
+```
+
+### 4.4. Integração com URLs
+
+```tsx
+// Sincronizar página com URL
+const [searchParams, setSearchParams] = useSearchParams();
+const pageFromUrl = parseInt(searchParams.get('page') || '0');
+
+const { setPage } = useViewList({
+  initialOffset: pageFromUrl * 20,
+  // ...
+});
+
+// Atualizar URL quando página muda
+const handlePageChange = (page: number) => {
+  setPage(page);
+  setSearchParams({ page: page.toString() });
+};
+```
+
+---
+
+## 5. Tratamento de Erros & Retry
+
+```tsx
+const { statusInfoList:{ isErrorOnSearching }, retry } = useViewList({
+  resolveResources: async () => {
+    const res = await api.get('/endpoint');
+    if(!res.ok) throw new Error('Falha');
+    return res.data;
+  },
+  onErrorSearch: err => toast.error(err.message)
+});
+
+{isErrorOnSearching && <button onClick={retry}>Tentar novamente</button>}
+```
+
+---
+
+## 6. Melhores Práticas
+
+1. **Memoize filtros** ao passá-los manualmente (useMemo/useCallback) para evitar renders extras.
+2. Use `treatmentResources` para normalizar/ordenar dados antes de salvar – evita _map_ em cada render.
+3. Nunca manipule `filters.offset` diretamente; use `nextPage`, `previousPage`, `setPage` ou `setFilters`.
+4. Para paginação numérica, calcule a página atual com `Math.floor(filters.offset / limit)`.
+5. Combine com `useViewForm` para editar itens e refletir mudanças usando `updateResource` ou `putResource`.
+
+---
+
+## 7. Troubleshooting
+
+| Sintoma | Possível Causa | Ação Recomendada |
+|---------|---------------|------------------|
+| `isFirstPage`/`isLastPage` incorretos | `resolveResources` não devolve `count` coerente | Garanta o total correto no backend. |
+| Offsets bagunçados após erro | Não usar `retry()` | Sempre use `retry()` – ele restaura offset anterior. |
+| Lista vazia após delete | `resourcesTotal` não atualizado | Certifique-se de usar `deleteResource`/`deleteManyResources`. |
+| `setPage()` não funciona como esperado | Página negativa ou cálculo incorreto | Lembre-se: páginas começam em 0, offset = página × limit. |
+
+---
+
+## 8. Conclusão
+
+`useViewList` simplifica listagens paginadas, oferecendo:
+
+- **Estado completo** de busca/paginação;
+- **API declarativa** para filtros;
+- **Navegação flexível** com `nextPage`, `previousPage` e `setPage`;
+- **Funções de manipulação local** prontas para _optimistic UI_;
+- Integração direta com `useView` e outros hooks da lib.
+
+> Utilize-o para elevar a experiência de listas na sua aplicação React! 🚀 

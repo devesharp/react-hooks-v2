@@ -372,6 +372,91 @@ describe('useViewList', () => {
       );
     });
 
+    it('deve navegar para página específica usando setPage', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          limit: 10,
+          firstLoad: false,
+        })
+      );
+
+      // Navega para a página 2 (offset = 2 * 10 = 20)
+      await act(async () => {
+        result.current.setPage(2);
+      });
+
+      expect(resolveResources).toHaveBeenCalledWith(
+        expect.objectContaining({ offset: 20 })
+      );
+    });
+
+    it('deve navegar para página 0 usando setPage', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          limit: 5,
+          firstLoad: false,
+        })
+      );
+
+      // Navega para a página 0 (offset = 0 * 5 = 0)
+      await act(async () => {
+        result.current.setPage(0);
+      });
+
+      expect(resolveResources).toHaveBeenCalledWith(
+        expect.objectContaining({ offset: 0 })
+      );
+    });
+
+    it('não deve permitir página negativa no setPage', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          limit: 10,
+          firstLoad: false,
+        })
+      );
+
+      // Tenta navegar para página negativa
+      await act(async () => {
+        result.current.setPage(-1);
+      });
+
+      // Deve usar página 0 (offset = 0)
+      expect(resolveResources).toHaveBeenCalledWith(
+        expect.objectContaining({ offset: 0 })
+      );
+    });
+
+    it('deve calcular offset corretamente para diferentes páginas e limites', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          limit: 15,
+          firstLoad: false,
+        })
+      );
+
+      // Página 3 com limite 15 = offset 45
+      await act(async () => {
+        result.current.setPage(3);
+      });
+
+      expect(resolveResources).toHaveBeenCalledWith(
+        expect.objectContaining({ offset: 45 })
+      );
+    });
+
     it('deve ter função retry disponível', () => {
       const resolveResources = createMockResolveResources();
 
@@ -612,6 +697,7 @@ describe('useViewList', () => {
       expect(typeof result.current.reloadPage).toBe('function');
       expect(typeof result.current.nextPage).toBe('function');
       expect(typeof result.current.previousPage).toBe('function');
+      expect(typeof result.current.setPage).toBe('function');
       expect(typeof result.current.retry).toBe('function');
 
       // Funções de manipulação de recursos
