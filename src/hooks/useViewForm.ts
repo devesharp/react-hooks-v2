@@ -1,12 +1,8 @@
 import {
-  useLayoutEffect,
   useRef,
-  useMemo,
   useEffect,
   useCallback,
 } from "react";
-import { setErrorUnFormWithYup } from "@devesharp/react-utils/lib/Utils/SetErrorUnFormWithYup";
-import { FormHandles, UnformErrors } from "@devesharp/unform-core";
 import cloneDeep from "clone-deep";
 import isPromise from "is-promise";
 import { useImmer, useImmerReducer } from "use-immer";
@@ -22,13 +18,11 @@ import {
   IExtractResolverType,
   IResolve,
   IResolvedValues,
-  IStatusInfo,
 } from "./useView.interfaces";
 
 export function useViewForm<
   DataForm = unknown,
-  IDType = string | number,
-  T extends Record<string, IResolve> = Record<string, IResolve>
+  IDType = string | number
 >({
   id,
   onStarted,
@@ -47,7 +41,7 @@ export function useViewForm<
   handleInsertForm = (v) => v as Partial<DataForm>,
   resolves = {},
   firstLoad = true,
-}: IUseViewFormProps<DataForm, IDType, T>) {
+}: IUseViewFormProps<DataForm, IDType>) {
   // Se houver ID, faz primeira request
   const resolvesForm = { ...resolves };
 

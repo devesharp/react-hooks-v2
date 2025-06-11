@@ -1,7 +1,7 @@
 // Tipo para diferentes tipos de resolvers
 type ResolverFunction<T = unknown, T2 extends unknown[] = unknown[]> = (...args: T2) => T | Promise<T>;
 type ResolverPromise<T = unknown, T2 extends unknown[] = unknown[]> = (...args: T2) => Promise<T>;
-export type IResolve<T = unknown, T2 = unknown> = ResolverFunction<T, T2> | ResolverPromise<T, T2> | undefined;
+export type IResolve<T = unknown, T2 extends unknown[] = unknown[]> = ResolverFunction<T, T2> | ResolverPromise<T, T2>;
 
 // Tipo para extrair o tipo de retorno de um resolver
 export type IExtractResolverType<T> = T extends () => infer R
@@ -16,7 +16,7 @@ export type IResolvedValues<T extends Record<string, IResolve>> = {
    [K in keyof T]: IExtractResolverType<T[K]>
  }
 
-export interface IUseViewProps<T extends Record<string, IResolve>> {
+export interface IUseViewProps<T extends Record<string, IResolve | undefined>> {
   /**
    * Promises que devem ser iniciados antes do início da página
    */
@@ -36,6 +36,7 @@ export interface IUseViewProps<T extends Record<string, IResolve>> {
    * Função que será chamada quando o carregamento dos resolves for finalizado com erro
    */
   onErrorStarted?: (v: { [K in keyof T]?: Error }) => void;
+  onErrorSearch?: (v: Error) => void;
 }
 
 export interface IStatusInfo {

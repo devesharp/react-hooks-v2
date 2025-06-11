@@ -317,4 +317,30 @@ describe('useView', () => {
       expect(mockResolver).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('Variáveis externas', () => {
+    it('deve atualizar valor do resolve quando variavel externa muda', async () => {
+      let variavelExterna = 10;
+      const resolves = { changeValue: () => variavelExterna };
+
+      const { result } = renderHook(() => useView({ resolves }));
+
+      // Aguarda processamento inicial
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      expect(result.current.resolvesResponse.changeValue).toBe(10);
+
+      // Altera a variável externa
+      variavelExterna = 20;
+
+      // Recarrega os resolves para refletir a mudança
+      await act(async () => {
+        await result.current.reloadPage(false);
+      });
+
+      expect(result.current.resolvesResponse.changeValue).toBe(20);
+    });
+  });
 });

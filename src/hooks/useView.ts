@@ -193,5 +193,6 @@ export function useView<T extends Record<string, IResolve>>({
     setStatusInfo,
     resolvesResponse,
     reloadPage,
+    runResolver,
   };
 }

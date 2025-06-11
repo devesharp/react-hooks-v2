@@ -56,7 +56,7 @@ export interface IUseViewFormProps<
   DataForm = unknown,
   IDType = string | number,
   T extends Record<string, IResolve> = Record<string, IResolve>
-> extends IUseViewProps<Record<string, IResolve>> {
+> extends IUseViewProps<T> {
   /**
    * Id do resource
    *
