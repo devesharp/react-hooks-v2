@@ -25,12 +25,18 @@
     "react-dom": ">=17"
   },
   "dependencies": {
-    "tsup": "^8.5.0"
+    "axios": "^1.9.0",
+    "clone-deep": "^4.0.1",
+    "immer": "^10.1.1",
+    "tsup": "^8.5.0",
+    "use-immer": "^0.11.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
+    "@types/clone-deep": "^4.0.4",
     "@types/react": "^19.1.7",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.4.1",
