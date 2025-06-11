@@ -188,10 +188,33 @@ export function useViewForm<
       formData = await formData;
     }
 
-    return validateData ? validateData(formData) : {};
+    let result = validateData ? validateData(formData) : {};
+
+    if (isPromise(result)) {
+      result = await result;
+    }
+
+    setErrors(() => result);
+
+    return result;
+  }
+
+  function setFieldErrors(field: string, error: string): void {
+    setErrors((prevErrors) => {
+      const newErrors = { ...prevErrors };
+      newErrors[field] = error;
+      return newErrors;
+    });
+  }
+
+  function clearErrors(): void {
+    setErrors(() => ({}));
   }
 
   async function submitForm(): Promise<void> {
+    // Limpar erros antes de iniciar o processo de submit
+    clearErrors();
+
     let newData = getData(true);
 
     if (newData instanceof Promise) {
@@ -207,6 +230,7 @@ export function useViewForm<
       }
 
       if (Object.keys(valid).length > 0) {
+        setErrors(() => valid);
         onErrorData?.(Object.values(valid));
         return;
       }
@@ -374,5 +398,9 @@ export function useViewForm<
     getField,
     getOriginalField,
     submitForm,
+    errors,
+    setErrors,
+    setFieldErrors,
+    clearErrors,
   };
 }

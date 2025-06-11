@@ -1009,6 +1009,187 @@ describe('useViewForm', () => {
       });
     });
 
+    describe('Gerenciamento de erros', () => {
+      it('deve inicializar sem erros', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        expect(result.current.errors).toEqual({});
+      });
+
+      it('deve definir erro de campo específico com setFieldErrors', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldErrors('name', 'Nome é obrigatório');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: 'Nome é obrigatório'
+        });
+      });
+
+      it('deve definir múltiplos erros de campos', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldErrors('name', 'Nome é obrigatório');
+          result.current.setFieldErrors('email', 'Email inválido');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: 'Nome é obrigatório',
+          email: 'Email inválido'
+        });
+      });
+
+      it('deve sobrescrever erro existente do mesmo campo', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldErrors('name', 'Nome é obrigatório');
+          result.current.setFieldErrors('name', 'Nome deve ter pelo menos 3 caracteres');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: 'Nome deve ter pelo menos 3 caracteres'
+        });
+      });
+
+      it('deve limpar todos os erros com clearErrors', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldErrors('name', 'Nome é obrigatório');
+          result.current.setFieldErrors('email', 'Email inválido');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: 'Nome é obrigatório',
+          email: 'Email inválido'
+        });
+
+        act(() => {
+          result.current.clearErrors();
+        });
+
+        expect(result.current.errors).toEqual({});
+      });
+
+      it('deve limpar erros antes de submeter formulário', async () => {
+        const formData = { name: 'Test', email: 'test@test.com' };
+        const resolveCreate = vi.fn().mockResolvedValue({ id: 1, ...formData });
+        
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({
+            resolveCreate,
+            initialData: formData,
+          })
+        );
+
+        // Definir alguns erros primeiro
+        act(() => {
+          result.current.setFieldErrors('name', 'Erro anterior');
+          result.current.setFieldErrors('email', 'Outro erro');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: 'Erro anterior',
+          email: 'Outro erro'
+        });
+
+        // Submeter formulário deve limpar os erros
+        await act(async () => {
+          await result.current.submitForm();
+        });
+
+        expect(result.current.errors).toEqual({});
+      });
+
+      it('deve manter erros de validação após submit quando há erros', async () => {
+        const formData = { name: '', email: 'invalid-email' };
+        const validationErrors = { 
+          name: 'Nome é obrigatório',
+          email: 'Email inválido'
+        };
+        const validateData = vi.fn().mockReturnValue(validationErrors);
+        const onErrorData = vi.fn();
+        
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({
+            validateData,
+            onErrorData,
+            initialData: formData,
+          })
+        );
+
+        // Definir alguns erros anteriores
+        act(() => {
+          result.current.setFieldErrors('oldField', 'Erro antigo');
+        });
+
+        // Submeter formulário
+        await act(async () => {
+          await result.current.submitForm();
+        });
+
+        // Erros antigos devem ser limpos e novos erros de validação devem aparecer
+        expect(result.current.errors).toEqual(validationErrors);
+        expect(onErrorData).toHaveBeenCalledWith(['Nome é obrigatório', 'Email inválido']);
+      });
+
+      it('deve definir erros através de setErrors diretamente', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        const errors = {
+          name: 'Nome é obrigatório',
+          email: 'Email inválido'
+        };
+
+        act(() => {
+          result.current.setErrors(errors);
+        });
+
+        expect(result.current.errors).toEqual(errors);
+      });
+
+      it('deve limpar erros específicos definindo string vazia', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldErrors('name', 'Nome é obrigatório');
+          result.current.setFieldErrors('email', 'Email inválido');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: 'Nome é obrigatório',
+          email: 'Email inválido'
+        });
+
+        act(() => {
+          result.current.setFieldErrors('name', '');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: '',
+          email: 'Email inválido'
+        });
+      });
+    });
+
     describe('Callback checkErrors com dados específicos', () => {
       it('deve ter função checkErrors disponível', () => {
         const validateData = vi.fn().mockReturnValue({});

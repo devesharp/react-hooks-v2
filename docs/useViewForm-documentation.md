@@ -73,6 +73,8 @@ useViewForm<DataForm = unknown, IDType = string | number, T extends Record<strin
 | `checkErrors()` | `Promise<Record<string,string>>` | Executa `validateData`. |
 | `submitForm()` | `Promise<void>` | Cria ou atualiza. |
 | `reloadPage(wait1s?)` | `Promise<Resolves>` | Dispara *reload* geral. |
+| `setFieldErrors(field, error)` | - | Define erro para um campo específico. |
+| `clearErrors()` | - | Limpa todos os erros. |
 | _e todos os métodos herdados do_ **`useView`** |
 
 ---
@@ -171,7 +173,144 @@ const valor = getField('endereco.cidade.nome');
 
 ---
 
-## 4. Tratamento de Erros HTTP
+## 4. Gerenciamento de Erros
+
+### 4.1. Erros de Validação
+
+O `useViewForm` oferece várias formas de gerenciar erros de validação:
+
+#### Definindo erros manualmente
+
+```tsx
+const { setFieldErrors, clearErrors, errors } = useViewForm<UserForm>({
+  // ... outras props
+});
+
+// Definir erro para um campo específico
+setFieldErrors('email', 'Este email já está em uso');
+
+// Definir múltiplos erros
+setFieldErrors('name', 'Nome é obrigatório');
+setFieldErrors('password', 'Senha deve ter pelo menos 8 caracteres');
+setErrors({name: 'Nome é obrigatório', password:  'Senha deve ter pelo menos 8 caracteres'})
+// Limpar todos os erros
+clearErrors();
+
+// Acessar erros atuais
+console.log(errors); // { email: 'Este email já está em uso', name: 'Nome é obrigatório' }
+```
+
+#### Validação automática com `validateData`
+
+```tsx
+const validate = (data: UserForm) => {
+  const errors: Record<string, string> = {};
+  
+  if (!data.name) errors.name = 'Nome é obrigatório';
+  if (!data.email.includes('@')) errors.email = 'Email inválido';
+  
+  return errors;
+};
+
+const { submitForm, errors } = useViewForm<UserForm>({
+  validateData: validate,
+  onErrorData: (errorMessages) => {
+    // Chamado quando há erros de validação
+    toast.error(errorMessages.join('\n'));
+  },
+  // ... outras props
+});
+```
+
+#### Limpeza automática de erros
+
+Os erros são **automaticamente limpos** no início de cada `submitForm()`, garantindo que erros antigos não persistam:
+
+```tsx
+// Cenário: usuário tem erros de validação
+setFieldErrors('name', 'Nome é obrigatório');
+console.log(errors); // { name: 'Nome é obrigatório' }
+
+// Ao submeter novamente, erros são limpos primeiro
+await submitForm(); // Erros são limpos → validação executa → novos erros (se houver) são definidos
+```
+
+#### Exemplo completo com gerenciamento de erros
+
+```tsx
+function UserForm() {
+  const {
+    resource, setField, submitForm, errors,
+    setFieldErrors, clearErrors, isSaving
+  } = useViewForm<UserForm>({
+    initialData: { name: '', email: '' },
+    validateData: (data) => {
+      const errors: Record<string, string> = {};
+      if (!data.name) errors.name = 'Nome é obrigatório';
+      if (!data.email.includes('@')) errors.email = 'Email inválido';
+      return errors;
+    },
+    resolveCreate: (body) => api.post('/users', body),
+    onSuccess: () => {
+      toast.success('Usuário criado!');
+      clearErrors(); // Opcional: limpar erros após sucesso
+    },
+    onErrorData: (errorMessages) => {
+      toast.error('Corrija os erros no formulário');
+    }
+  });
+
+  // Validação customizada em tempo real
+  const handleEmailBlur = async () => {
+    if (resource.email) {
+      try {
+        await api.get(`/users/check-email/${resource.email}`);
+        // Email disponível - limpar erro se existir
+        if (errors.email === 'Email já está em uso') {
+          setFieldErrors('email', '');
+        }
+      } catch {
+        setFieldErrors('email', 'Email já está em uso');
+      }
+    }
+  };
+
+  return (
+    <form onSubmit={e => { e.preventDefault(); submitForm(); }}>
+      <div>
+        <input 
+          value={resource.name ?? ''} 
+          onChange={e => setField('name', e.target.value)}
+          className={errors.name ? 'error' : ''}
+        />
+        {errors.name && <span className="error-text">{errors.name}</span>}
+      </div>
+      
+      <div>
+        <input 
+          value={resource.email ?? ''} 
+          onChange={e => setField('email', e.target.value)}
+          onBlur={handleEmailBlur}
+          className={errors.email ? 'error' : ''}
+        />
+        {errors.email && <span className="error-text">{errors.email}</span>}
+      </div>
+      
+      <button disabled={isSaving || Object.keys(errors).length > 0}>
+        Salvar
+      </button>
+      
+      <button type="button" onClick={clearErrors}>
+        Limpar Erros
+      </button>
+    </form>
+  );
+}
+```
+
+---
+
+## 5. Tratamento de Erros HTTP
 
 `useViewForm` já identifica 404/401 provenientes de:
 
@@ -190,7 +329,7 @@ Estados resultantes:
 
 ---
 
-## 5. Ciclo de Vida Completo
+## 6. Ciclo de Vida Completo
 
 ```mermaid
 graph TD
@@ -210,17 +349,21 @@ graph TD
 
 ---
 
-## 6. Melhores Práticas
+## 7. Melhores Práticas
 
 1. **Memoize** resolvers que dependem de `props` com `useMemo`.
 2. Use **`handleInsertForm`** para adaptar a resposta da API (e.g. converter datas).
 3. Valide **antes** de chamar `submitForm` usando `checkErrors()` caso precise abrir diálogo de confirmação.
 4. Prefira **paths tipados** `setField<'endereco.rua'>('endereco.rua', 'Nova Rua');`.
 5. Ative `updateResourceOnSave` somente se o back-end devolve a entidade já atualizada.
+6. **Use `setFieldErrors`** para validações em tempo real (ex.: verificar disponibilidade de email).
+7. **Combine `clearErrors`** com feedback visual para melhor UX após correções.
+8. **Desabilite botões de submit** quando há erros: `disabled={Object.keys(errors).length > 0}`.
+9. **Aproveite a limpeza automática** de erros no `submitForm` - não precisa limpar manualmente antes.
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Sintoma | Causa comum | Solução |
 |---------|-------------|---------|
@@ -231,7 +374,7 @@ graph TD
 
 ---
 
-## 8. Conclusão
+## 9. Conclusão
 
 `useViewForm` centraliza **load → edit → validate → save → feedback** em um único hook:
 
