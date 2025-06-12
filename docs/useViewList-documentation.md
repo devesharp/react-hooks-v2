@@ -546,3 +546,94 @@ const { isErrorOnSearching, retry } = useViewList({
 - Integração direta com `useView` e outros hooks da lib.
 
 > Utilize-o para elevar a experiência de listas na sua aplicação React! 🚀 
+
+## 9. Novos Callbacks
+
+### 9.1. onBeforeSearch
+Executado antes de cada busca ser iniciada.
+
+```typescript
+const onBeforeSearch = (filters: { offset: number; sort: SortValue } & Partial<IFilter>) => {
+  console.log('Iniciando busca com filtros:', filters);
+  // Útil para analytics, loading states customizados, etc.
+};
+```
+
+### 9.2. onAfterSearch
+Executado após cada busca ser concluída, seja com sucesso ou erro.
+
+```typescript
+const onAfterSearch = (result: {
+  success: boolean;
+  data?: IResponseResults<IResource>;
+  error?: Error;
+  filters: { offset: number; sort: SortValue } & Partial<IFilter>;
+}) => {
+  if (result.success) {
+    console.log('Busca bem-sucedida:', result.data);
+  } else {
+    console.error('Erro na busca:', result.error);
+  }
+  
+  // Útil para analytics, notificações, logs, etc.
+};
+```
+
+### 9.3. onChangeFilters
+Executado sempre que os filtros são alterados.
+
+```typescript
+const onChangeFilters = (
+  newFilters: { offset: number; sort: SortValue } & Partial<IFilter>,
+  previousFilters: { offset: number; sort: SortValue } & Partial<IFilter>
+) => {
+  console.log('Filtros alterados de:', previousFilters, 'para:', newFilters);
+  // Útil para sincronização com URL, localStorage, etc.
+};
+```
+
+## 10. Casos de Uso dos Callbacks
+
+### 10.1. onBeforeSearch
+- Mostrar indicadores de loading customizados
+- Cancelar requisições anteriores
+- Validar filtros antes da busca
+- Registrar analytics de início de busca
+- Preparar dados para a requisição
+
+### 10.2. onAfterSearch
+- Processar resultados da busca
+- Mostrar notificações de sucesso/erro
+- Registrar analytics de conclusão
+- Atualizar caches locais
+- Executar ações pós-busca
+
+### 10.3. onChangeFilters
+- Sincronizar com URL/roteamento
+- Salvar filtros no localStorage
+- Registrar mudanças para analytics
+- Validar combinações de filtros
+- Atualizar estados relacionados
+
+## 11. Troubleshooting
+
+### 11.1. Callbacks não são executados
+- Verifique se os callbacks estão sendo passados corretamente
+- Certifique-se de que não há erros JavaScript que interrompam a execução
+- Use `console.log` dentro dos callbacks para debug
+
+### 11.2. Ordem incorreta dos callbacks
+- A ordem é sempre: `onBeforeSearch` → `onChangeFilters` → `onAfterSearch`
+- Se precisar de uma ordem diferente, considere usar `useEffect` com dependências
+
+### 11.3. Performance com muitos callbacks
+- Evite operações pesadas dentro dos callbacks
+- Use `useCallback` para otimizar callbacks que dependem de estados
+- Considere debounce para callbacks que podem ser executados frequentemente
+
+### 11.4. Callbacks executados múltiplas vezes
+- Isso pode acontecer se os filtros mudarem rapidamente
+- Use debounce ou throttle se necessário
+- Verifique se não há loops infinitos de atualização de estado
+
+> Utilize-o para elevar a experiência de listas na sua aplicação React! 🚀 

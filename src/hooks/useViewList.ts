@@ -18,6 +18,9 @@ export function useViewList<
   onStarted,
   onErrorStarted,
   onErrorSearch,
+  onBeforeSearch,
+  onAfterSearch,
+  onChangeFilters,
   limit = 20,
   initialOffset = 0,
   initialSort = null,
@@ -142,11 +145,18 @@ export function useViewList<
       return;
     }
 
+    // Chama callback antes da busca
+    onBeforeSearch?.(filtersToApply);
+
     // Define estado de busca iniciada
     setStatusInfoList({
       isSearching: true,
       isErrorOnSearching: false,
     });
+
+    // Chama callback de mudança de filtros
+    const previousFilters = filters;
+    onChangeFilters?.(filtersToApply, previousFilters);
 
     // Atualiza filtros – isso irá ocasionar novo render, mas já fazemos a busca abaixo
     _setFilters(filtersToApply);
@@ -155,8 +165,23 @@ export function useViewList<
       // Executa a busca diretamente com os filtros atualizados
       const response = await resolveResources(filtersToApply);
       processSearch(response);
+      
+      // Chama callback após sucesso
+      onAfterSearch?.({
+        success: true,
+        data: response,
+        filters: filtersToApply,
+      });
     } catch (err) {
       const errorInstance = err instanceof Error ? err : new Error(String(err));
+      
+      // Chama callback após erro
+      onAfterSearch?.({
+        success: false,
+        error: errorInstance,
+        filters: filtersToApply,
+      });
+      
       onErrorSearch?.(errorInstance);
     }
   }
@@ -172,11 +197,18 @@ export function useViewList<
     // Memoriza a última requisição feita
     lastAttemptedFiltersRef.current = filtersToApply;
 
+    // Chama callback antes da busca
+    onBeforeSearch?.(filtersToApply);
+
     // Define estado de busca iniciada
     setStatusInfoList({
       isSearching: true,
       isErrorOnSearching: false,
     });
+
+    // Chama callback de mudança de filtros
+    const previousFilters = filters;
+    onChangeFilters?.(filtersToApply, previousFilters);
 
     // Atualiza filtros – já ajustamos o offset antes da requisição
     _setFilters(filtersToApply);
@@ -184,6 +216,13 @@ export function useViewList<
     try {
       const response = await resolveResources(filtersToApply);
       processSearch(response);
+      
+      // Chama callback após sucesso
+      onAfterSearch?.({
+        success: true,
+        data: response,
+        filters: filtersToApply,
+      });
     } catch (err) {
       // Reverte o offset em caso de falha
       _setFilters((prev) => ({ ...prev, offset: previousOffset }));
@@ -194,6 +233,14 @@ export function useViewList<
       });
 
       const errorInstance = err instanceof Error ? err : new Error(String(err));
+      
+      // Chama callback após erro
+      onAfterSearch?.({
+        success: false,
+        error: errorInstance,
+        filters: filtersToApply,
+      });
+      
       onErrorSearch?.(errorInstance);
     }
   }
@@ -401,6 +448,7 @@ export function useViewList<
     resources,
     resourcesTotal,
     filters,
+    limit,
     setFilters,
     nextPage,
     previousPage,

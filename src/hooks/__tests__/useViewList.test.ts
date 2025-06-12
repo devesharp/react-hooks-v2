@@ -230,6 +230,142 @@ describe('useViewList', () => {
 
       expect(onErrorSearch).toHaveBeenCalledWith(expect.any(Error));
     });
+
+    it('deve chamar onBeforeSearch antes de iniciar busca', async () => {
+      const resolveResources = createMockResolveResources();
+      const onBeforeSearch = vi.fn();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          onBeforeSearch,
+          firstLoad: false,
+        })
+      );
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      expect(onBeforeSearch).toHaveBeenCalledWith({
+        offset: 0,
+        sort: null,
+        search: 'test',
+      });
+    });
+
+    it('deve chamar onAfterSearch após busca bem-sucedida', async () => {
+      const resolveResources = createMockResolveResources();
+      const onAfterSearch = vi.fn();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          onAfterSearch,
+          firstLoad: false,
+        })
+      );
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      expect(onAfterSearch).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          results: expect.any(Array),
+          count: expect.any(Number),
+        }),
+        filters: {
+          offset: 0,
+          sort: null,
+          search: 'test',
+        },
+      });
+    });
+
+    it('deve chamar onAfterSearch após erro na busca', async () => {
+      const resolveResources = createMockResolveResources();
+      const onAfterSearch = vi.fn();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          onAfterSearch,
+          firstLoad: false,
+        })
+      );
+
+      // Simula erro na busca
+      resolveResources.mockRejectedValueOnce(new Error('Search error'));
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      expect(onAfterSearch).toHaveBeenCalledWith({
+        success: false,
+        error: expect.any(Error),
+        filters: {
+          offset: 0,
+          sort: null,
+          search: 'test',
+        },
+      });
+    });
+
+    it('deve chamar onChangeFilters quando filtros são alterados', async () => {
+      const resolveResources = createMockResolveResources();
+      const onChangeFilters = vi.fn();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          onChangeFilters,
+          firstLoad: false,
+        })
+      );
+
+      const previousFilters = result.current.filters;
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      expect(onChangeFilters).toHaveBeenCalledWith(
+        {
+          offset: 0,
+          sort: null,
+          search: 'test',
+        },
+        previousFilters
+      );
+    });
+
+    it('deve chamar callbacks na ordem correta durante busca', async () => {
+      const resolveResources = createMockResolveResources();
+      const callOrder: string[] = [];
+      
+      const onBeforeSearch = vi.fn(() => callOrder.push('before'));
+      const onChangeFilters = vi.fn(() => callOrder.push('change'));
+      const onAfterSearch = vi.fn(() => callOrder.push('after'));
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          onBeforeSearch,
+          onChangeFilters,
+          onAfterSearch,
+          firstLoad: false,
+        })
+      );
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      expect(callOrder).toEqual(['before', 'change', 'after']);
+    });
   });
 
   describe('Filtros', () => {

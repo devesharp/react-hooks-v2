@@ -199,122 +199,88 @@ function UserProfile({ userId }: { userId: string }) {
 }
 ```
 
-### useViewList
-
-Hook avançado para gerenciar listas de recursos com paginação, filtros e manipulação de dados.
+### useViewList - Gerenciamento Avançado de Listas
 
 ```typescript
-import { useViewList } from 'my-hooks-lib'
+import { useViewList } from '@devesharp/react-hooks-v2';
 
-interface User {
-  id: number
-  name: string
-  email: string
-  status: 'active' | 'inactive'
-}
-
-interface UserFilter {
-  search?: string
-  status?: 'active' | 'inactive'
-}
-
-function UserListComponent() {
+function UserList() {
   const {
-    resources,
+    resources: users,
     resourcesTotal,
-    filters,
     isSearching,
-    isErrorOnSearching,
     isFirstPage,
     isLastPage,
     setFilters,
     nextPage,
     previousPage,
-    setPage,
     setSort,
-    retry,
-    pushResource,
-    updateResource,
-    deleteResource
-  } = useViewList<User, UserFilter>({
+  } = useViewList<User, UserFilters>({
     resolveResources: async (filters) => {
-      const response = await fetch(`/api/users?${new URLSearchParams(filters)}`)
-      return response.json() // { results: User[], count: number }
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        body: JSON.stringify(filters),
+      });
+      return response.json();
     },
-    limit: 20,
-    initialFilters: { status: 'active' },
-    initialSort: { column: 'name', direction: 'asc' },
-    onErrorSearch: (error) => console.error('Erro na busca:', error)
-  })
+    limit: 10,
+    // Novos callbacks para eventos
+    onBeforeSearch: (filters) => {
+      console.log('Iniciando busca:', filters);
+    },
+    onAfterSearch: (result) => {
+      if (result.success) {
+        console.log(`Carregados ${result.data?.results.length} usuários`);
+      } else {
+        console.error('Erro na busca:', result.error);
+      }
+    },
+    onChangeFilters: (newFilters, previousFilters) => {
+      // Sincronizar com URL
+      const params = new URLSearchParams();
+      if (newFilters.search) params.set('search', newFilters.search);
+      window.history.replaceState({}, '', `?${params.toString()}`);
+    },
+  });
 
   return (
     <div>
-      {/* Filtros */}
+      {/* Busca */}
       <input
+        type="text"
         placeholder="Buscar usuários..."
         onChange={(e) => setFilters({ search: e.target.value })}
       />
       
       {/* Ordenação */}
-      <select 
-        value={filters.sort ? `${filters.sort.column}_${filters.sort.direction}` : ''} 
-        onChange={(e) => {
-          if (!e.target.value) {
-            setSort(null);
-          } else {
-            const [column, direction] = e.target.value.split('_');
-            setSort({ column, direction: direction as 'asc' | 'desc' });
-          }
-        }}
-      >
+      <select onChange={(e) => {
+        const [column, direction] = e.target.value.split(':');
+        setSort(column ? { column, direction: direction as 'asc' | 'desc' } : null);
+      }}>
         <option value="">Sem ordenação</option>
-        <option value="name_asc">Nome A-Z</option>
-        <option value="name_desc">Nome Z-A</option>
-        <option value="created_at_desc">Mais Recentes</option>
-        <option value="created_at_asc">Mais Antigos</option>
+        <option value="name:asc">Nome (A-Z)</option>
+        <option value="name:desc">Nome (Z-A)</option>
       </select>
-      
-      {/* Lista de recursos */}
-      {isSearching ? (
-        <div>Carregando...</div>
-      ) : (
-        <div>
-          {resources.map(user => (
-            <div key={user.id}>
-              <h3>{user.name}</h3>
-              <p>{user.email}</p>
-              <button onClick={() => deleteResource(user.id)}>
-                Remover
-              </button>
-            </div>
-          ))}
+
+      {/* Lista */}
+      {isSearching && <div>Carregando...</div>}
+      {users.map(user => (
+        <div key={user.id}>
+          <h3>{user.name}</h3>
+          <p>{user.email}</p>
         </div>
-      )}
+      ))}
 
       {/* Paginação */}
-      <div>
-        <button 
-          onClick={previousPage} 
-          disabled={isFirstPage}
-        >
-          Anterior
-        </button>
-        
-        <button onClick={() => setPage(0)}>Página 1</button>
-        <button onClick={() => setPage(1)}>Página 2</button>
-        <button onClick={() => setPage(2)}>Página 3</button>
-        
-        <button 
-          onClick={nextPage} 
-          disabled={isLastPage}
-        >
-          Próxima
-        </button>
-      </div>
-
-      <p>Total: {resourcesTotal} usuários</p>
+      <button onClick={previousPage} disabled={isFirstPage}>
+        Anterior
+      </button>
+      <span>Total: {resourcesTotal}</span>
+      <button onClick={nextPage} disabled={isLastPage}>
+        Próxima
+      </button>
     </div>
-  )
+  );
 }
 ```
 
