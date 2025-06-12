@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useViewList } from '../useViewList';
-import { IResponseResults } from '../useViewList.interfaces';
+import { IResponseResults, SortValue } from '../useViewList.interfaces';
 
 // Mock para use-immer - versão simplificada que funciona
 vi.mock('use-immer', async () => {
@@ -73,7 +73,6 @@ interface TestFilter {
   search?: string;
   status?: 'active' | 'inactive';
   category?: string;
-  sort?: string;
 }
 
 describe('useViewList', () => {
@@ -120,7 +119,7 @@ describe('useViewList', () => {
 
       expect(result.current.resources).toEqual([]);
       expect(result.current.resourcesTotal).toBe(0);
-      expect(result.current.filters).toEqual({ offset: 0, sort: '' });
+      expect(result.current.filters).toEqual({ offset: 0, sort: null });
       expect(result.current.isSearching).toBe(true);
       expect(result.current.isErrorOnSearching).toBe(false);
       expect(result.current.isFirstPage).toBe(false);
@@ -131,13 +130,14 @@ describe('useViewList', () => {
       const resolveResources = createMockResolveResources();
       const initialFilters = { search: 'test', status: 'active' as const };
       const filtersDefault = { category: 'users' };
+      const initialSort: SortValue = { column: 'name', direction: 'asc' };
 
       const { result } = renderHook(() =>
         useViewList<TestResource, TestFilter>({
           resolveResources,
           limit: 10,
           initialOffset: 5,
-          initialSort: 'name_asc',
+          initialSort,
           initialFilters,
           filtersDefault,
           firstLoad: false,
@@ -146,7 +146,7 @@ describe('useViewList', () => {
 
       expect(result.current.filters).toEqual({
         offset: 5,
-        sort: 'name_asc',
+        sort: { column: 'name', direction: 'asc' },
         category: 'users',
         search: 'test',
         status: 'active',
@@ -255,7 +255,7 @@ describe('useViewList', () => {
       );
       expect(resolveResources).toHaveBeenCalledWith({
         offset: 0,
-        sort: '',
+        sort: null,
         search: 'test',
         status: 'active',
       });
@@ -329,14 +329,16 @@ describe('useViewList', () => {
         result.current.filters.offset = 20;
       });
 
+      const newSort: SortValue = { column: 'name', direction: 'desc' };
+
       await act(async () => {
-        result.current.setSort('name_desc');
+        result.current.setSort(newSort);
       });
 
-      expect(result.current.filters.sort).toBe('name_desc');
+      expect(result.current.filters.sort).toEqual({ column: 'name', direction: 'desc' });
       expect(resolveResources).toHaveBeenCalledWith(
         expect.objectContaining({
-          sort: 'name_desc',
+          sort: { column: 'name', direction: 'desc' },
           offset: 20, // Deve manter o offset atual
         })
       );
@@ -344,16 +346,45 @@ describe('useViewList', () => {
 
     it('deve inicializar com sort customizado', () => {
       const resolveResources = createMockResolveResources();
+      const initialSort: SortValue = { column: 'created_at', direction: 'desc' };
 
       const { result } = renderHook(() =>
         useViewList<TestResource, TestFilter>({
           resolveResources,
-          initialSort: 'created_at_desc',
+          initialSort,
           firstLoad: false,
         })
       );
 
-      expect(result.current.filters.sort).toBe('created_at_desc');
+      expect(result.current.filters.sort).toEqual({ column: 'created_at', direction: 'desc' });
+    });
+
+    it('deve permitir remover ordenação com null', async () => {
+      const resolveResources = createMockResolveResources();
+      const initialSort: SortValue = { column: 'name', direction: 'asc' };
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          initialSort,
+          firstLoad: false,
+        })
+      );
+
+      // Verifica que começou com ordenação
+      expect(result.current.filters.sort).toEqual({ column: 'name', direction: 'asc' });
+
+      // Remove ordenação
+      await act(async () => {
+        result.current.setSort(null);
+      });
+
+      expect(result.current.filters.sort).toBe(null);
+      expect(resolveResources).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sort: null,
+        })
+      );
     });
 
     it('deve executar setSort sem erro', () => {
@@ -367,7 +398,11 @@ describe('useViewList', () => {
       );
 
       expect(() => {
-        result.current.setSort('name_asc');
+        result.current.setSort({ column: 'name', direction: 'asc' });
+      }).not.toThrow();
+
+      expect(() => {
+        result.current.setSort(null);
       }).not.toThrow();
     });
   });

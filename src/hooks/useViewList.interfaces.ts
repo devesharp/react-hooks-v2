@@ -15,6 +15,15 @@ export interface IResponseResults<T = unknown> {
   count: number;
 }
 
+export type SortDirection = 'asc' | 'desc';
+
+export interface ISortConfig {
+  column: string | null;
+  direction: SortDirection;
+}
+
+export type SortValue = null | ISortConfig;
+
 export interface IStatusInfoViewList extends IStatusInfo {
   isSearching: boolean;
   isLastPage: boolean;
@@ -31,7 +40,7 @@ export interface IUseViewListProps<
 
   initialOffset?: number;
 
-  initialSort?: string;
+  initialSort?: SortValue;
 
   filtersDefault?: Partial<IFilter>;
 

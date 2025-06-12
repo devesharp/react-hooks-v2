@@ -243,7 +243,7 @@ function UserListComponent() {
     },
     limit: 20,
     initialFilters: { status: 'active' },
-    initialSort: 'name_asc',
+    initialSort: { column: 'name', direction: 'asc' },
     onErrorSearch: (error) => console.error('Erro na busca:', error)
   })
 
@@ -257,9 +257,17 @@ function UserListComponent() {
       
       {/* Ordenação */}
       <select 
-        value={filters.sort} 
-        onChange={(e) => setSort(e.target.value)}
+        value={filters.sort ? `${filters.sort.column}_${filters.sort.direction}` : ''} 
+        onChange={(e) => {
+          if (!e.target.value) {
+            setSort(null);
+          } else {
+            const [column, direction] = e.target.value.split('_');
+            setSort({ column, direction: direction as 'asc' | 'desc' });
+          }
+        }}
       >
+        <option value="">Sem ordenação</option>
         <option value="name_asc">Nome A-Z</option>
         <option value="name_desc">Nome Z-A</option>
         <option value="created_at_desc">Mais Recentes</option>
@@ -324,7 +332,8 @@ function UserListComponent() {
 
 **Ordenação:**
 - `setSort(sort)`: Atualiza ordenação mantendo a página atual
-- `initialSort`: Define ordenação inicial (padrão: string vazia)
+- `initialSort`: Define ordenação inicial (padrão: `null`)
+- Aceita `null` ou `{ column: string | null, direction: 'asc' | 'desc' }`
 
 **Manipulação de Recursos:**
 - `pushResource(resource)`: Adiciona um novo recurso à lista

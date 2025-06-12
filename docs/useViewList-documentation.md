@@ -34,7 +34,7 @@ useViewList<
 | `resolveResources*` | `IResolve<IResponseResults<IResource>>` | Função/Promise que retorna `{ results, count }`. |
 | `limit` | `number` | Tamanho da página (default `20`). |
 | `initialOffset` | `number` | Offset inicial (default `0`). |
-| `initialSort` | `string` | Ordenação inicial (default `''`). |
+| `initialSort` | `SortValue` | Ordenação inicial (default `null`). |
 | `filtersDefault` | `Partial<IFilter>` | Filtros base aplicados a TODAS as buscas. |
 | `initialFilters` | `Partial<IFilter>` | Filtros iniciais adicionais. |
 | `treatmentResources` | `(items) ⇒ IResource[]` | Manipula a lista antes de salvar no estado (ex.: _map_, _sort_). |
@@ -45,13 +45,26 @@ useViewList<
 
 > **Obrigatório**: `resolveResources`.
 
+#### Tipos de Ordenação
+
+```ts
+type SortDirection = 'asc' | 'desc';
+
+interface ISortConfig {
+  column: string | null;
+  direction: SortDirection;
+}
+
+type SortValue = null | ISortConfig;
+```
+
 ### 2.2. Retorno do Hook
 
 | Campo | Tipo | Finalidade |
 |-------|------|------------|
 | `resources` | `IResource[]` | Lista atual. |
 | `resourcesTotal` | `number` | Total fornecido por `count`. |
-| `filters` | `{ offset:number; sort:string } & Partial<IFilter>` | Filtros vigentes. |
+| `filters` | `{ offset:number; sort:SortValue } & Partial<IFilter>` | Filtros vigentes. |
 | **Estados de Busca e Paginação** |
 | `isSearching` | `boolean` | `true` enquanto busca em progresso. |
 | `isErrorOnSearching` | `boolean` | `true` se última busca falhou. |
@@ -69,7 +82,7 @@ useViewList<
 | `setFilters(filters, opts?)` | Busca com filtros novos. `opts.force` ignora comparação. |
 | `nextPage()` / `previousPage()` | Paginação forward/backward. |
 | `setPage(pageNumber)` | Navega para página específica (começando em 0). |
-| `setSort(sort)` | Atualiza ordenação mantendo offset atual. |
+| `setSort(sort)` | Atualiza ordenação mantendo offset atual. Aceita `SortValue`. |
 | `retry()` | Reexecuta a última busca que falhou. |
 | `reloadPage()` | _Hard refresh_ via `useView`. |
 | **Manipulação Local** |
@@ -103,7 +116,7 @@ export default function ProductList() {
       api.get('/products', { params: { offset, limit: 20, sort, ...filtros } })
          .then(res => res.data),
     filtersDefault: { min: 0 },
-    initialSort: 'name_asc',
+    initialSort: { column: 'name', direction: 'asc' },
   });
 
   return (
@@ -115,9 +128,17 @@ export default function ProductList() {
 
       {/* Controles de ordenação */}
       <select 
-        value={filters.sort} 
-        onChange={e => setSort(e.target.value)}
+        value={filters.sort ? `${filters.sort.column}_${filters.sort.direction}` : ''} 
+        onChange={e => {
+          if (!e.target.value) {
+            setSort(null);
+          } else {
+            const [column, direction] = e.target.value.split('_');
+            setSort({ column, direction: direction as 'asc' | 'desc' });
+          }
+        }}
       >
+        <option value="">Sem ordenação</option>
         <option value="name_asc">Nome A-Z</option>
         <option value="name_desc">Nome Z-A</option>
         <option value="price_asc">Preço Menor</option>
@@ -249,7 +270,10 @@ putResource(id, { name: 'Renomeando…' });
 api.put(`/items/${id}`, { name });
 
 // Mudança de ordenação sem perder a página atual
-setSort('created_at_desc');
+setSort({ column: 'created_at', direction: 'desc' });
+
+// Remover ordenação
+setSort(null);
 ```
 
 ---
@@ -283,10 +307,13 @@ A função `setSort()` permite alterar a ordenação dos resultados mantendo a p
 #### Como Funciona
 
 ```tsx
-// Altera ordenação mantendo offset atual
-setSort('name_asc');    // Ordena por nome A-Z
-setSort('name_desc');   // Ordena por nome Z-A
-setSort('created_at');  // Ordena por data de criação
+// Definir ordenação
+setSort({ column: 'name', direction: 'asc' });     // Ordena por nome A-Z
+setSort({ column: 'name', direction: 'desc' });    // Ordena por nome Z-A
+setSort({ column: 'created_at', direction: 'desc' }); // Ordena por data
+
+// Remover ordenação
+setSort(null);
 ```
 
 #### Características
@@ -294,7 +321,21 @@ setSort('created_at');  // Ordena por data de criação
 - **Mantém offset**: Não reseta para primeira página
 - **Busca automática**: Executa nova busca com nova ordenação
 - **Tratamento de erro**: Se falhar, permite `retry()`
-- **Flexível**: Aceita qualquer string de ordenação
+- **Tipagem forte**: Aceita `SortValue` (null ou objeto com column/direction)
+- **Flexível**: `column` pode ser `null` para casos especiais
+
+#### Estrutura do Sort
+
+```ts
+type SortDirection = 'asc' | 'desc';
+
+interface ISortConfig {
+  column: string | null;  // Nome da coluna ou null
+  direction: SortDirection; // 'asc' ou 'desc'
+}
+
+type SortValue = null | ISortConfig;
+```
 
 ### 4.3. Exemplo Prático com Paginação e Ordenação
 
@@ -306,7 +347,7 @@ function SortableTable() {
     setPage, setSort, nextPage, previousPage 
   } = useViewList({
     limit: 10,
-    initialSort: 'name_asc',
+    initialSort: { column: 'name', direction: 'asc' },
     resolveResources: ({ offset, sort }) =>
       api.get('/items', { params: { offset, limit: 10, sort } }).then(r => r.data),
   });
@@ -314,12 +355,36 @@ function SortableTable() {
   const currentPage = Math.floor(filters.offset / 10);
   const totalPages = Math.ceil(resourcesTotal / 10);
 
+  const handleSort = (column: string) => {
+    const currentSort = filters.sort;
+    
+    if (currentSort?.column === column) {
+      // Se já está ordenando por esta coluna, inverte a direção
+      const newDirection = currentSort.direction === 'asc' ? 'desc' : 'asc';
+      setSort({ column, direction: newDirection });
+    } else {
+      // Nova coluna, começa com 'asc'
+      setSort({ column, direction: 'asc' });
+    }
+  };
+
   return (
     <div>
       {/* Controles de ordenação */}
       <div className="sort-controls">
         <label>Ordenar por:</label>
-        <select value={filters.sort} onChange={e => setSort(e.target.value)}>
+        <select 
+          value={filters.sort ? `${filters.sort.column}_${filters.sort.direction}` : ''} 
+          onChange={e => {
+            if (!e.target.value) {
+              setSort(null);
+            } else {
+              const [column, direction] = e.target.value.split('_');
+              setSort({ column, direction: direction as 'asc' | 'desc' });
+            }
+          }}
+        >
+          <option value="">Sem ordenação</option>
           <option value="name_asc">Nome ↑</option>
           <option value="name_desc">Nome ↓</option>
           <option value="created_at_asc">Data ↑</option>
@@ -332,12 +397,21 @@ function SortableTable() {
         <thead>
           <tr>
             <th>
-              Nome 
-              <button onClick={() => setSort(filters.sort === 'name_asc' ? 'name_desc' : 'name_asc')}>
-                {filters.sort === 'name_asc' ? '↓' : '↑'}
+              <button onClick={() => handleSort('name')}>
+                Nome 
+                {filters.sort?.column === 'name' && (
+                  filters.sort.direction === 'asc' ? ' ↑' : ' ↓'
+                )}
               </button>
             </th>
-            <th>Data</th>
+            <th>
+              <button onClick={() => handleSort('created_at')}>
+                Data
+                {filters.sort?.column === 'created_at' && (
+                  filters.sort.direction === 'asc' ? ' ↑' : ' ↓'
+                )}
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -375,23 +449,44 @@ function SortableTable() {
 // Sincronizar página e ordenação com URL
 const [searchParams, setSearchParams] = useSearchParams();
 const pageFromUrl = parseInt(searchParams.get('page') || '0');
-const sortFromUrl = searchParams.get('sort') || 'name_asc';
+const sortColumn = searchParams.get('sortColumn');
+const sortDirection = searchParams.get('sortDirection') as 'asc' | 'desc' | null;
 
-const { setPage, setSort } = useViewList({
+const initialSort: SortValue = sortColumn && sortDirection 
+  ? { column: sortColumn, direction: sortDirection }
+  : null;
+
+const { setPage, setSort, filters } = useViewList({
   initialOffset: pageFromUrl * 20,
-  initialSort: sortFromUrl,
+  initialSort,
   // ...
 });
 
 // Atualizar URL quando página ou ordenação muda
 const handlePageChange = (page: number) => {
   setPage(page);
-  setSearchParams({ page: page.toString(), sort: filters.sort });
+  const params = new URLSearchParams();
+  params.set('page', page.toString());
+  
+  if (filters.sort) {
+    params.set('sortColumn', filters.sort.column || '');
+    params.set('sortDirection', filters.sort.direction);
+  }
+  
+  setSearchParams(params);
 };
 
-const handleSortChange = (sort: string) => {
+const handleSortChange = (sort: SortValue) => {
   setSort(sort);
-  setSearchParams({ page: currentPage.toString(), sort });
+  const params = new URLSearchParams();
+  params.set('page', currentPage.toString());
+  
+  if (sort) {
+    params.set('sortColumn', sort.column || '');
+    params.set('sortDirection', sort.direction);
+  }
+  
+  setSearchParams(params);
 };
 ```
 
@@ -433,8 +528,10 @@ const { isErrorOnSearching, retry } = useViewList({
 | Lista vazia após delete | `resourcesTotal` não atualizado | Certifique-se de usar `deleteResource`/`deleteManyResources`. |
 | `setPage()` não funciona como esperado | Página negativa ou cálculo incorreto | Lembre-se: páginas começam em 0, offset = página × limit. |
 | Propriedades de estado não encontradas | Tentativa de acessar `statusInfo.isLoading` | Use diretamente `isLoading`, `isSearching`, etc. (propriedades achatadas). |
-| Ordenação não funciona | Backend não processa parâmetro `sort` | Verifique se o backend está lendo e aplicando o parâmetro `sort`. |
+| Ordenação não funciona | Backend não processa parâmetro `sort` | Verifique se o backend está lendo e aplicando o parâmetro `sort` corretamente. |
 | `setSort()` reseta página | Comportamento esperado diferente | `setSort()` mantém offset atual; use `setFilters()` para resetar página. |
+| Erro de tipo com `setSort` | Passando string ao invés de objeto | Use `{ column: 'nome', direction: 'asc' }` ou `null`. |
+| Sort não aparece nos filtros | Inicialização incorreta | Verifique se `initialSort` está no formato correto. |
 
 ---
 
