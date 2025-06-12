@@ -103,11 +103,6 @@ export function useViewList<
     setResources(treatmentResources(resources.results));
     setResourcesTotal(resources.count);
 
-    _setFilters((prev) => ({
-      ...prev,
-      offset: prev.offset + resources.results.length,
-    }));
-
     setStatusInfoList({
       isFirstPage: !filters.offset,
       isLastPage: filters.offset + limit >= resources.count,
