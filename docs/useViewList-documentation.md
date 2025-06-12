@@ -51,8 +51,19 @@ useViewList<
 | `resources` | `IResource[]` | Lista atual. |
 | `resourcesTotal` | `number` | Total fornecido por `count`. |
 | `filters` | `{ offset:number } & Partial<IFilter>` | Filtros vigentes. |
-| `statusInfoList` | `IStatusInfoViewList` | Estados de busca/paginação (👇). |
-| `statusInfo` / `setStatusInfo` / `resolvesResponse` | Herdados de `useView`. |
+| **Estados de Busca e Paginação** |
+| `isSearching` | `boolean` | `true` enquanto busca em progresso. |
+| `isErrorOnSearching` | `boolean` | `true` se última busca falhou. |
+| `isFirstPage` | `boolean` | `true` se offset === 0. |
+| `isLastPage` | `boolean` | `true` se offset+limit >= total. |
+| **Estados de Carregamento (herdados de useView)** |
+| `isLoading` | `boolean` | `true` durante carregamento inicial. |
+| `isStarted` | `boolean` | `true` após primeira execução. |
+| `isErrorOnLoad` | `boolean` | `true` se houve erro no carregamento inicial. |
+| `isCriticalError` | `boolean` | `true` para erros críticos. |
+| **Funções de Controle** |
+| `setStatusInfo` | `function` | Atualiza estados manualmente (herdado de useView). |
+| `resolvesResponse` | `object` | Respostas dos resolvers (herdado de useView). |
 | **Busca & Navegação** |
 | `setFilters(filters, opts?)` | Busca com filtros novos. `opts.force` ignora comparação. |
 | `nextPage()` / `previousPage()` | Paginação forward/backward. |
@@ -68,17 +79,7 @@ useViewList<
 | `changePosition(id, idx)` | Move item para posição. |
 | `putManyResource(partial, ids?)` | Merge em vários (ou todos). |
 
-#### `IStatusInfoViewList`
-
-```ts
-{
-  isSearching: boolean;       // true enquanto busca em progresso
-  isErrorOnSearching: boolean;// true se última busca falhou
-  isFirstPage: boolean;       // true se offset === 0
-  isLastPage: boolean;        // true se offset+limit >= total
-  // + flags de IStatusInfo (carregamento inicial)
-}
-```
+> **Nota**: As propriedades de estado (`isSearching`, `isErrorOnSearching`, etc.) são retornadas diretamente no objeto principal, não como objetos aninhados.
 
 ---
 
@@ -93,7 +94,7 @@ interface ProductFilter { search?:string; min?:number; max?:number; }
 export default function ProductList() {
   const {
     resources, resourcesTotal, filters,
-    statusInfoList: { isSearching, isErrorOnSearching, isFirstPage, isLastPage },
+    isSearching, isErrorOnSearching, isFirstPage, isLastPage,
     setFilters, nextPage, previousPage, setPage
   } = useViewList<Product, ProductFilter>({
     resolveResources: ({ offset, ...filtros }) =>
@@ -137,7 +138,7 @@ export default function ProductList() {
 ```tsx
 function InfiniteUsers() {
   const {
-    resources, statusInfoList: { isSearching, isLastPage },
+    resources, isSearching, isLastPage,
     nextPage
   } = useViewList<User>({
     limit: 50,
@@ -170,7 +171,7 @@ function InfiniteUsers() {
 function PaginatedTable() {
   const {
     resources, resourcesTotal,
-    statusInfoList: { isSearching, isFirstPage, isLastPage },
+    isSearching, isFirstPage, isLastPage,
     nextPage, previousPage, setPage, filters
   } = useViewList<Item>({
     limit: 10,
@@ -325,7 +326,7 @@ const handlePageChange = (page: number) => {
 ## 5. Tratamento de Erros & Retry
 
 ```tsx
-const { statusInfoList:{ isErrorOnSearching }, retry } = useViewList({
+const { isErrorOnSearching, retry } = useViewList({
   resolveResources: async () => {
     const res = await api.get('/endpoint');
     if(!res.ok) throw new Error('Falha');
@@ -357,6 +358,7 @@ const { statusInfoList:{ isErrorOnSearching }, retry } = useViewList({
 | Offsets bagunçados após erro | Não usar `retry()` | Sempre use `retry()` – ele restaura offset anterior. |
 | Lista vazia após delete | `resourcesTotal` não atualizado | Certifique-se de usar `deleteResource`/`deleteManyResources`. |
 | `setPage()` não funciona como esperado | Página negativa ou cálculo incorreto | Lembre-se: páginas começam em 0, offset = página × limit. |
+| Propriedades de estado não encontradas | Tentativa de acessar `statusInfo.isLoading` | Use diretamente `isLoading`, `isSearching`, etc. (propriedades achatadas). |
 
 ---
 

@@ -120,10 +120,10 @@ describe('useViewList', () => {
       expect(result.current.resources).toEqual([]);
       expect(result.current.resourcesTotal).toBe(0);
       expect(result.current.filters).toEqual({ offset: 0 });
-      expect(result.current.statusInfoList.isSearching).toBe(true);
-      expect(result.current.statusInfoList.isErrorOnSearching).toBe(false);
-      expect(result.current.statusInfoList.isFirstPage).toBe(false);
-      expect(result.current.statusInfoList.isLastPage).toBe(false);
+      expect(result.current.isSearching).toBe(true);
+      expect(result.current.isErrorOnSearching).toBe(false);
+      expect(result.current.isFirstPage).toBe(false);
+      expect(result.current.isLastPage).toBe(false);
     });
 
     it('deve inicializar com parâmetros customizados', () => {
@@ -589,15 +589,15 @@ describe('useViewList', () => {
         result.current.setFilters({ search: 'test' });
       });
 
-      expect(result.current.statusInfoList.isSearching).toBe(true);
-      expect(result.current.statusInfoList.isErrorOnSearching).toBe(false);
+      expect(result.current.isSearching).toBe(true);
+      expect(result.current.isErrorOnSearching).toBe(false);
 
       // Aguarda conclusão
       await act(async () => {
         await new Promise(resolve => setTimeout(resolve, 150));
       });
 
-      expect(result.current.statusInfoList.isSearching).toBe(false);
+      expect(result.current.isSearching).toBe(false);
     });
 
     it('deve ter propriedades de estado de erro', () => {
@@ -610,8 +610,8 @@ describe('useViewList', () => {
         })
       );
 
-      expect(typeof result.current.statusInfoList.isSearching).toBe('boolean');
-      expect(typeof result.current.statusInfoList.isErrorOnSearching).toBe('boolean');
+      expect(typeof result.current.isSearching).toBe('boolean');
+      expect(typeof result.current.isErrorOnSearching).toBe('boolean');
     });
 
     it('deve reverter offset em caso de erro na paginação', async () => {
@@ -640,7 +640,7 @@ describe('useViewList', () => {
 
       // Offset deve ter sido revertido
       expect(result.current.filters.offset).toBe(initialOffset);
-      expect(result.current.statusInfoList.isErrorOnSearching).toBe(true);
+      expect(result.current.isErrorOnSearching).toBe(true);
     });
   });
 
@@ -655,11 +655,11 @@ describe('useViewList', () => {
         })
       );
 
-      expect(typeof result.current.statusInfoList.isFirstPage).toBe('boolean');
-      expect(typeof result.current.statusInfoList.isLastPage).toBe('boolean');
+      expect(typeof result.current.isFirstPage).toBe('boolean');
+      expect(typeof result.current.isLastPage).toBe('boolean');
     });
 
-    it('deve ter informações de paginação no statusInfoList', () => {
+    it('deve ter informações de paginação diretamente no retorno', () => {
       const resolveResources = createMockResolveResources(mockResources, mockResources.length);
 
       const { result } = renderHook(() =>
@@ -669,10 +669,10 @@ describe('useViewList', () => {
         })
       );
 
-      expect(result.current.statusInfoList).toHaveProperty('isFirstPage');
-      expect(result.current.statusInfoList).toHaveProperty('isLastPage');
-      expect(result.current.statusInfoList).toHaveProperty('isSearching');
-      expect(result.current.statusInfoList).toHaveProperty('isErrorOnSearching');
+      expect(result.current).toHaveProperty('isFirstPage');
+      expect(result.current).toHaveProperty('isLastPage');
+      expect(result.current).toHaveProperty('isSearching');
+      expect(result.current).toHaveProperty('isErrorOnSearching');
     });
   });
 
@@ -690,7 +690,16 @@ describe('useViewList', () => {
       expect(Array.isArray(result.current.resources)).toBe(true);
       expect(typeof result.current.resourcesTotal).toBe('number');
       expect(typeof result.current.filters).toBe('object');
-      expect(typeof result.current.statusInfoList).toBe('object');
+
+      // Propriedades de estado (achatadas no retorno)
+      expect(typeof result.current.isSearching).toBe('boolean');
+      expect(typeof result.current.isErrorOnSearching).toBe('boolean');
+      expect(typeof result.current.isFirstPage).toBe('boolean');
+      expect(typeof result.current.isLastPage).toBe('boolean');
+      expect(typeof result.current.isLoading).toBe('boolean');
+      expect(typeof result.current.isStarted).toBe('boolean');
+      expect(typeof result.current.isErrorOnLoad).toBe('boolean');
+      expect(typeof result.current.isCriticalError).toBe('boolean');
 
       // Funções de controle
       expect(typeof result.current.setFilters).toBe('function');
@@ -710,7 +719,6 @@ describe('useViewList', () => {
       expect(typeof result.current.putManyResource).toBe('function');
 
       // Propriedades do useView
-      expect(typeof result.current.statusInfo).toBe('object');
       expect(typeof result.current.setStatusInfo).toBe('function');
       expect(typeof result.current.resolvesResponse).toBe('object');
     });

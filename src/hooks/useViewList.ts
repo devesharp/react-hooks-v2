@@ -386,14 +386,14 @@ export function useViewList<
   }
 
   return {
-    statusInfo,
+  ...statusInfo,
+  ...statusInfoList,
     setStatusInfo,
     reloadPage,
     resolvesResponse,
     resources,
     resourcesTotal,
     filters,
-    statusInfoList,
     setFilters,
     nextPage,
     previousPage,

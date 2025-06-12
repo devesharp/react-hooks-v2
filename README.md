@@ -223,7 +223,10 @@ function UserListComponent() {
     resources,
     resourcesTotal,
     filters,
-    statusInfoList,
+    isSearching,
+    isErrorOnSearching,
+    isFirstPage,
+    isLastPage,
     setFilters,
     nextPage,
     previousPage,
@@ -251,7 +254,7 @@ function UserListComponent() {
       />
       
       {/* Lista de recursos */}
-      {statusInfoList.isSearching ? (
+      {isSearching ? (
         <div>Carregando...</div>
       ) : (
         <div>
@@ -271,7 +274,7 @@ function UserListComponent() {
       <div>
         <button 
           onClick={previousPage} 
-          disabled={statusInfoList.isFirstPage}
+          disabled={isFirstPage}
         >
           Anterior
         </button>
@@ -282,7 +285,7 @@ function UserListComponent() {
         
         <button 
           onClick={nextPage} 
-          disabled={statusInfoList.isLastPage}
+          disabled={isLastPage}
         >
           Próxima
         </button>
@@ -315,12 +318,10 @@ function UserListComponent() {
 - `changePosition(id, newPosition)`: Altera a posição de um recurso
 
 **Estados:**
-- `statusInfoList.isSearching`: Indica se uma busca está em andamento
-- `statusInfoList.isErrorOnSearching`: Indica se houve erro na busca
-- `statusInfoList.isFirstPage`: Indica se está na primeira página
-- `statusInfoList.isLastPage`: Indica se está na última página
-
-```
+- `isSearching`: Indica se uma busca está em andamento
+- `isErrorOnSearching`: Indica se houve erro na busca
+- `isFirstPage`: Indica se está na primeira página
+- `isLastPage`: Indica se está na última página
 
 ## 🛠️ Desenvolvimento
 
