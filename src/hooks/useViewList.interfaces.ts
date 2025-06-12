@@ -31,6 +31,8 @@ export interface IUseViewListProps<
 
   initialOffset?: number;
 
+  initialSort?: string;
+
   filtersDefault?: Partial<IFilter>;
 
   initialFilters?: Partial<IFilter>;

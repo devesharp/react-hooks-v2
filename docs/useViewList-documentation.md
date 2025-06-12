@@ -34,6 +34,7 @@ useViewList<
 | `resolveResources*` | `IResolve<IResponseResults<IResource>>` | Função/Promise que retorna `{ results, count }`. |
 | `limit` | `number` | Tamanho da página (default `20`). |
 | `initialOffset` | `number` | Offset inicial (default `0`). |
+| `initialSort` | `string` | Ordenação inicial (default `''`). |
 | `filtersDefault` | `Partial<IFilter>` | Filtros base aplicados a TODAS as buscas. |
 | `initialFilters` | `Partial<IFilter>` | Filtros iniciais adicionais. |
 | `treatmentResources` | `(items) ⇒ IResource[]` | Manipula a lista antes de salvar no estado (ex.: _map_, _sort_). |
@@ -50,7 +51,7 @@ useViewList<
 |-------|------|------------|
 | `resources` | `IResource[]` | Lista atual. |
 | `resourcesTotal` | `number` | Total fornecido por `count`. |
-| `filters` | `{ offset:number } & Partial<IFilter>` | Filtros vigentes. |
+| `filters` | `{ offset:number; sort:string } & Partial<IFilter>` | Filtros vigentes. |
 | **Estados de Busca e Paginação** |
 | `isSearching` | `boolean` | `true` enquanto busca em progresso. |
 | `isErrorOnSearching` | `boolean` | `true` se última busca falhou. |
@@ -68,6 +69,7 @@ useViewList<
 | `setFilters(filters, opts?)` | Busca com filtros novos. `opts.force` ignora comparação. |
 | `nextPage()` / `previousPage()` | Paginação forward/backward. |
 | `setPage(pageNumber)` | Navega para página específica (começando em 0). |
+| `setSort(sort)` | Atualiza ordenação mantendo offset atual. |
 | `retry()` | Reexecuta a última busca que falhou. |
 | `reloadPage()` | _Hard refresh_ via `useView`. |
 | **Manipulação Local** |
@@ -95,12 +97,13 @@ export default function ProductList() {
   const {
     resources, resourcesTotal, filters,
     isSearching, isErrorOnSearching, isFirstPage, isLastPage,
-    setFilters, nextPage, previousPage, setPage
+    setFilters, nextPage, previousPage, setPage, setSort
   } = useViewList<Product, ProductFilter>({
-    resolveResources: ({ offset, ...filtros }) =>
-      api.get('/products', { params: { offset, limit: 20, ...filtros } })
+    resolveResources: ({ offset, sort, ...filtros }) =>
+      api.get('/products', { params: { offset, limit: 20, sort, ...filtros } })
          .then(res => res.data),
     filtersDefault: { min: 0 },
+    initialSort: 'name_asc',
   });
 
   return (
@@ -109,6 +112,17 @@ export default function ProductList() {
         placeholder="Buscar…"
         onChange={e => setFilters({ search: e.target.value })}
       />
+
+      {/* Controles de ordenação */}
+      <select 
+        value={filters.sort} 
+        onChange={e => setSort(e.target.value)}
+      >
+        <option value="name_asc">Nome A-Z</option>
+        <option value="name_desc">Nome Z-A</option>
+        <option value="price_asc">Preço Menor</option>
+        <option value="price_desc">Preço Maior</option>
+      </select>
 
       {isSearching && <p>Carregando…</p>}
       {isErrorOnSearching && <p>Erro na busca 😢</p>}
@@ -233,15 +247,20 @@ onSuccess: (novo) => pushResource(novo, false);
 // Otimistic update
 putResource(id, { name: 'Renomeando…' });
 api.put(`/items/${id}`, { name });
+
+// Mudança de ordenação sem perder a página atual
+setSort('created_at_desc');
 ```
 
 ---
 
-## 4. Navegação por Páginas com `setPage()`
+## 4. Navegação e Ordenação
+
+### 4.1. Navegação por Páginas com `setPage()`
 
 A função `setPage()` permite navegar diretamente para uma página específica, calculando automaticamente o offset correto.
 
-### 4.1. Como Funciona
+#### Como Funciona
 
 ```tsx
 // Página começa em 0
@@ -250,53 +269,101 @@ setPage(1); // Segunda página (offset = limit * 1)
 setPage(2); // Terceira página (offset = limit * 2)
 ```
 
-### 4.2. Características
+#### Características
 
 - **Páginas começam em 0**: A primeira página é `setPage(0)`
 - **Cálculo automático**: `offset = página × limit`
 - **Proteção contra valores negativos**: `setPage(-1)` vira `setPage(0)`
 - **Usa a mesma lógica de erro**: Se falhar, permite `retry()`
 
-### 4.3. Exemplo Prático com Paginação Numérica
+### 4.2. Ordenação com `setSort()`
+
+A função `setSort()` permite alterar a ordenação dos resultados mantendo a página atual.
+
+#### Como Funciona
 
 ```tsx
-function NumberedPagination() {
-  const { filters, resourcesTotal, setPage } = useViewList({
-    limit: 20,
-    resolveResources: fetchData
+// Altera ordenação mantendo offset atual
+setSort('name_asc');    // Ordena por nome A-Z
+setSort('name_desc');   // Ordena por nome Z-A
+setSort('created_at');  // Ordena por data de criação
+```
+
+#### Características
+
+- **Mantém offset**: Não reseta para primeira página
+- **Busca automática**: Executa nova busca com nova ordenação
+- **Tratamento de erro**: Se falhar, permite `retry()`
+- **Flexível**: Aceita qualquer string de ordenação
+
+### 4.3. Exemplo Prático com Paginação e Ordenação
+
+```tsx
+function SortableTable() {
+  const { 
+    resources, resourcesTotal, filters,
+    isSearching, isFirstPage, isLastPage,
+    setPage, setSort, nextPage, previousPage 
+  } = useViewList({
+    limit: 10,
+    initialSort: 'name_asc',
+    resolveResources: ({ offset, sort }) =>
+      api.get('/items', { params: { offset, limit: 10, sort } }).then(r => r.data),
   });
 
-  const currentPage = Math.floor(filters.offset / 20);
-  const totalPages = Math.ceil(resourcesTotal / 20);
+  const currentPage = Math.floor(filters.offset / 10);
+  const totalPages = Math.ceil(resourcesTotal / 10);
 
   return (
-    <div className="pagination">
-      {/* Primeira página */}
-      <button 
-        onClick={() => setPage(0)}
-        disabled={currentPage === 0}
-      >
-        Primeira
-      </button>
+    <div>
+      {/* Controles de ordenação */}
+      <div className="sort-controls">
+        <label>Ordenar por:</label>
+        <select value={filters.sort} onChange={e => setSort(e.target.value)}>
+          <option value="name_asc">Nome ↑</option>
+          <option value="name_desc">Nome ↓</option>
+          <option value="created_at_asc">Data ↑</option>
+          <option value="created_at_desc">Data ↓</option>
+        </select>
+      </div>
 
-      {/* Páginas numeradas */}
-      {Array.from({ length: totalPages }, (_, index) => (
-        <button
-          key={index}
-          onClick={() => setPage(index)}
-          className={index === currentPage ? 'active' : ''}
-        >
-          {index + 1}
+      {/* Tabela */}
+      <table>
+        <thead>
+          <tr>
+            <th>
+              Nome 
+              <button onClick={() => setSort(filters.sort === 'name_asc' ? 'name_desc' : 'name_asc')}>
+                {filters.sort === 'name_asc' ? '↓' : '↑'}
+              </button>
+            </th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody>
+          {resources.map(item => (
+            <tr key={item.id}>
+              <td>{item.name}</td>
+              <td>{item.createdAt}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Paginação */}
+      <div className="pagination">
+        <button onClick={previousPage} disabled={isFirstPage}>
+          ← Anterior
         </button>
-      ))}
 
-      {/* Última página */}
-      <button 
-        onClick={() => setPage(totalPages - 1)}
-        disabled={currentPage === totalPages - 1}
-      >
-        Última
-      </button>
+        <span>Página {currentPage + 1} de {totalPages}</span>
+
+        <button onClick={nextPage} disabled={isLastPage}>
+          Próxima →
+        </button>
+      </div>
+
+      {isSearching && <div>Carregando...</div>}
     </div>
   );
 }
@@ -305,19 +372,26 @@ function NumberedPagination() {
 ### 4.4. Integração com URLs
 
 ```tsx
-// Sincronizar página com URL
+// Sincronizar página e ordenação com URL
 const [searchParams, setSearchParams] = useSearchParams();
 const pageFromUrl = parseInt(searchParams.get('page') || '0');
+const sortFromUrl = searchParams.get('sort') || 'name_asc';
 
-const { setPage } = useViewList({
+const { setPage, setSort } = useViewList({
   initialOffset: pageFromUrl * 20,
+  initialSort: sortFromUrl,
   // ...
 });
 
-// Atualizar URL quando página muda
+// Atualizar URL quando página ou ordenação muda
 const handlePageChange = (page: number) => {
   setPage(page);
-  setSearchParams({ page: page.toString() });
+  setSearchParams({ page: page.toString(), sort: filters.sort });
+};
+
+const handleSortChange = (sort: string) => {
+  setSort(sort);
+  setSearchParams({ page: currentPage.toString(), sort });
 };
 ```
 
@@ -359,6 +433,8 @@ const { isErrorOnSearching, retry } = useViewList({
 | Lista vazia após delete | `resourcesTotal` não atualizado | Certifique-se de usar `deleteResource`/`deleteManyResources`. |
 | `setPage()` não funciona como esperado | Página negativa ou cálculo incorreto | Lembre-se: páginas começam em 0, offset = página × limit. |
 | Propriedades de estado não encontradas | Tentativa de acessar `statusInfo.isLoading` | Use diretamente `isLoading`, `isSearching`, etc. (propriedades achatadas). |
+| Ordenação não funciona | Backend não processa parâmetro `sort` | Verifique se o backend está lendo e aplicando o parâmetro `sort`. |
+| `setSort()` reseta página | Comportamento esperado diferente | `setSort()` mantém offset atual; use `setFilters()` para resetar página. |
 
 ---
 

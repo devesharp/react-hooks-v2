@@ -73,6 +73,7 @@ interface TestFilter {
   search?: string;
   status?: 'active' | 'inactive';
   category?: string;
+  sort?: string;
 }
 
 describe('useViewList', () => {
@@ -119,7 +120,7 @@ describe('useViewList', () => {
 
       expect(result.current.resources).toEqual([]);
       expect(result.current.resourcesTotal).toBe(0);
-      expect(result.current.filters).toEqual({ offset: 0 });
+      expect(result.current.filters).toEqual({ offset: 0, sort: '' });
       expect(result.current.isSearching).toBe(true);
       expect(result.current.isErrorOnSearching).toBe(false);
       expect(result.current.isFirstPage).toBe(false);
@@ -136,6 +137,7 @@ describe('useViewList', () => {
           resolveResources,
           limit: 10,
           initialOffset: 5,
+          initialSort: 'name_asc',
           initialFilters,
           filtersDefault,
           firstLoad: false,
@@ -144,6 +146,7 @@ describe('useViewList', () => {
 
       expect(result.current.filters).toEqual({
         offset: 5,
+        sort: 'name_asc',
         category: 'users',
         search: 'test',
         status: 'active',
@@ -252,6 +255,7 @@ describe('useViewList', () => {
       );
       expect(resolveResources).toHaveBeenCalledWith({
         offset: 0,
+        sort: '',
         search: 'test',
         status: 'active',
       });
@@ -293,6 +297,78 @@ describe('useViewList', () => {
       });
 
       expect(resolveResources.mock.calls.length).toBe(initialCallCount + 1);
+    });
+  });
+
+  describe('Ordenação', () => {
+    it('deve ter função setSort disponível', () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          firstLoad: false,
+        })
+      );
+
+      expect(typeof result.current.setSort).toBe('function');
+    });
+
+    it('deve atualizar ordenação e fazer nova busca', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          firstLoad: false,
+        })
+      );
+
+      // Define um offset inicial para verificar que é mantido
+      act(() => {
+        result.current.filters.offset = 20;
+      });
+
+      await act(async () => {
+        result.current.setSort('name_desc');
+      });
+
+      expect(result.current.filters.sort).toBe('name_desc');
+      expect(resolveResources).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sort: 'name_desc',
+          offset: 20, // Deve manter o offset atual
+        })
+      );
+    });
+
+    it('deve inicializar com sort customizado', () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          initialSort: 'created_at_desc',
+          firstLoad: false,
+        })
+      );
+
+      expect(result.current.filters.sort).toBe('created_at_desc');
+    });
+
+    it('deve executar setSort sem erro', () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          firstLoad: false,
+        })
+      );
+
+      expect(() => {
+        result.current.setSort('name_asc');
+      }).not.toThrow();
     });
   });
 
@@ -707,6 +783,7 @@ describe('useViewList', () => {
       expect(typeof result.current.nextPage).toBe('function');
       expect(typeof result.current.previousPage).toBe('function');
       expect(typeof result.current.setPage).toBe('function');
+      expect(typeof result.current.setSort).toBe('function');
       expect(typeof result.current.retry).toBe('function');
 
       // Funções de manipulação de recursos

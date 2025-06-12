@@ -19,6 +19,7 @@ export function useViewList<
   onErrorSearch,
   limit = 20,
   initialOffset = 0,
+  initialSort = '',
   filtersDefault: filtersDefaultOriginal = {},
   initialFilters = {},
   treatmentResources = (r: IResource[]): IResource[] => r,
@@ -28,9 +29,10 @@ export function useViewList<
   const [resources, setResources] = useState<IResource[]>([]);
   const [resourcesTotal, setResourcesTotal] = useState(0);
   const [filters, _setFilters] = useState<
-    { offset: number } & Partial<IFilter>
+    { offset: number; sort: string } & Partial<IFilter>
   >({
     offset: initialOffset,
+    sort: initialSort,
     ...filtersDefaultOriginal,
     ...initialFilters,
   });
@@ -40,7 +42,7 @@ export function useViewList<
    * Isso permite que possamos executar `retry()` posteriormente
    * e também reverter o offset caso ocorra erro ao navegar entre páginas.
    */
-  const lastAttemptedFiltersRef = useRef<{ offset: number } & Partial<IFilter>>(
+  const lastAttemptedFiltersRef = useRef<{ offset: number; sort: string } & Partial<IFilter>>(
     filters
   );
 
@@ -130,9 +132,10 @@ export function useViewList<
     // Novo estado de filtros a ser considerado
     const filtersToApply = {
       offset: initialOffset,
+      sort: initialSort,
       ...filtersDefaultOriginal,
       ...newFilters,
-    } as { offset: number } & Partial<IFilter>;
+    } as { offset: number; sort: string } & Partial<IFilter>;
 
     // Verifica se houve mudança efetiva nos filtros
     const hasChanged =
@@ -167,7 +170,7 @@ export function useViewList<
    * controle do offset anterior para rollback em caso de erro.
    */
   async function runSearchWithFilters(
-    filtersToApply: { offset: number } & Partial<IFilter>,
+    filtersToApply: { offset: number; sort: string } & Partial<IFilter>,
     previousOffset: number = filters.offset
   ) {
     // Memoriza a última requisição feita
@@ -230,6 +233,14 @@ export function useViewList<
     // Calcula o offset baseado na página e no limite
     const newOffset = safePage * limit;
     runSearchWithFilters({ ...filters, offset: newOffset }, filters.offset);
+  }
+
+  /**
+   * Atualiza a ordenação e executa nova busca mantendo o offset atual.
+   * @param sort Nova ordenação a ser aplicada
+   */
+  function setSort(sort: string) {
+    runSearchWithFilters({ ...filters, sort }, filters.offset);
   }
 
   /**
@@ -386,8 +397,8 @@ export function useViewList<
   }
 
   return {
-  ...statusInfo,
-  ...statusInfoList,
+    ...statusInfo,
+    ...statusInfoList,
     setStatusInfo,
     reloadPage,
     resolvesResponse,
@@ -398,6 +409,7 @@ export function useViewList<
     nextPage,
     previousPage,
     setPage,
+    setSort,
     retry,
     pushResource,
     updateResource,

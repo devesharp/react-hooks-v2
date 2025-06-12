@@ -231,6 +231,7 @@ function UserListComponent() {
     nextPage,
     previousPage,
     setPage,
+    setSort,
     retry,
     pushResource,
     updateResource,
@@ -242,6 +243,7 @@ function UserListComponent() {
     },
     limit: 20,
     initialFilters: { status: 'active' },
+    initialSort: 'name_asc',
     onErrorSearch: (error) => console.error('Erro na busca:', error)
   })
 
@@ -252,6 +254,17 @@ function UserListComponent() {
         placeholder="Buscar usuários..."
         onChange={(e) => setFilters({ search: e.target.value })}
       />
+      
+      {/* Ordenação */}
+      <select 
+        value={filters.sort} 
+        onChange={(e) => setSort(e.target.value)}
+      >
+        <option value="name_asc">Nome A-Z</option>
+        <option value="name_desc">Nome Z-A</option>
+        <option value="created_at_desc">Mais Recentes</option>
+        <option value="created_at_asc">Mais Antigos</option>
+      </select>
       
       {/* Lista de recursos */}
       {isSearching ? (
@@ -308,6 +321,10 @@ function UserListComponent() {
 **Filtros:**
 - `setFilters(newFilters)`: Atualiza filtros e reinicia a busca
 - `filters`: Estado atual dos filtros (inclui offset para paginação)
+
+**Ordenação:**
+- `setSort(sort)`: Atualiza ordenação mantendo a página atual
+- `initialSort`: Define ordenação inicial (padrão: string vazia)
 
 **Manipulação de Recursos:**
 - `pushResource(resource)`: Adiciona um novo recurso à lista
