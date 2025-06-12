@@ -1,0 +1,54 @@
+# Arquivos de desenvolvimento
+src/
+docs/
+coverage/
+public/
+*.config.ts
+*.config.js
+.eslintrc*
+.prettierrc*
+.gitignore
+.git/
+.github/
+
+# Arquivos de teste
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+test/
+tests/
+
+# Arquivos de configuração
+tsconfig*.json
+vite.config.ts
+vitest.config.ts
+eslint.config.js
+
+# Dependências
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos temporários
+.tmp/
+.cache/
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos de exemplo
+example/
+examples/
+demo/
+
+# Arquivos HTML de desenvolvimento
+index.html 

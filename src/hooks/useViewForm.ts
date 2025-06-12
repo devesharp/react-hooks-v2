@@ -363,7 +363,7 @@ export function useViewForm<
 
       return reloadPageView(wait1s) as Partial<IResolvedValues<TResolves>>;
     },
-    [reloadPageView]
+    [reloadPageView, setStatusInfoForm]
   );
 
   /**

@@ -1,10 +1,17 @@
 {
-  "name": "my-hooks-lib",
-  "version": "1.0.0",
+  "name": "@devesharp/react-hooks-v2",
+  "version": "1.0.2",
+  "description": "Coleção de hooks React customizados para desenvolvimento eficiente",
   "type": "module",
+  "private": false,
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -18,7 +25,34 @@
     "preview": "vite preview",
     "test": "vitest -w=false",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "predeploy": "npm run lint && npm run test:run && npm run build",
+    "deploy": "npm version patch && npm run predeploy && npm publish",
+    "deploy:dry": "npm run predeploy && npm publish --dry-run",
+    "check-deploy": "npm run predeploy && npm pack --dry-run",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "simulate-deploy": "echo '🔢 Incrementando versão patch...' && npm version patch --no-git-tag-version && echo '✅ Executando lint...' && npm run lint && echo '🧪 Executando testes...' && npm run test:run && echo '🏗️ Fazendo build...' && npm run build && echo '📦 Simulando publicação...' && npm publish --dry-run"
+  },
+  "keywords": [
+    "react",
+    "hooks",
+    "typescript",
+    "custom-hooks",
+    "react-hooks",
+    "frontend",
+    "utilities"
+  ],
+  "author": "DevESharp",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devesharp/react-hooks-v2.git"
+  },
+  "homepage": "https://github.com/devesharp/react-hooks-v2#readme",
+  "bugs": {
+    "url": "https://github.com/devesharp/react-hooks-v2/issues"
   },
   "peerDependencies": {
     "react": ">=17",
