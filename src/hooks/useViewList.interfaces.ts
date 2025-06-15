@@ -57,7 +57,7 @@ export interface IUseViewListProps<
   /**
    * Callback executado antes de iniciar uma busca.
    */
-  onBeforeSearch?: (filters: { offset: number; sort: SortValue } & Partial<IFilter>) => void;
+  onBeforeSearch?: (filters: { offset: number; sort: SortValue | null } & Partial<IFilter>) => void;
 
   /**
    * Callback executado após uma busca ser concluída (sucesso ou erro).
@@ -66,14 +66,14 @@ export interface IUseViewListProps<
     success: boolean;
     data?: IResponseResults<IResource>;
     error?: Error;
-    filters: { offset: number; sort: SortValue } & Partial<IFilter>;
+    filters: { offset: number; sort: SortValue | null } & Partial<IFilter>;
   }) => void;
 
   /**
    * Callback executado quando os filtros são alterados.
    */
   onChangeFilters?: (
-    newFilters: { offset: number; sort: SortValue } & Partial<IFilter>,
-    previousFilters: { offset: number; sort: SortValue } & Partial<IFilter>
+    newFilters: { offset: number; sort: SortValue | null } & Partial<IFilter>,
+    previousFilters: { offset: number; sort: SortValue | null } & Partial<IFilter>
   ) => void;
 }
