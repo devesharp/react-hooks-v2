@@ -1,22 +1,7 @@
 import { z, type ZodSchema, type ZodError } from 'zod';
 
-/**
- * Helper para construir objeto aninhado a partir de um path e valor
- */
-function setNestedValue(obj: Record<string, unknown>, path: (string | number)[], value: unknown): void {
-  if (path.length === 0) return;
-  
-  if (path.length === 1) {
-    obj[path[0]] = value;
-    return;
-  }
-  
-  const [head, ...tail] = path;
-  if (!(head in obj)) {
-    obj[head] = {};
-  }
-  setNestedValue(obj[head] as Record<string, unknown>, tail, value);
-}
+// Tipo para erros aninhados
+type NestedErrors = Record<string, string | Record<string, string>>;
 
 /**
  * Wrapper para usar schemas Zod com validateData do useViewForm
@@ -58,14 +43,16 @@ export function zodWrapper<T>(
      */
     includeFieldPath?: boolean;
     /**
-     * Retornar erros em estrutura aninhada em vez de dot notation
+     * Retornar erros mantendo a estrutura aninhada do objeto
+     * Se true, retorna { CORRETOR: { NOME: "Required" } }
+     * Se false, retorna { "CORRETOR.NOME": "Required" }
      */
     nestedErrors?: boolean;
   } = {}
 ) {
   const { transform, customErrorMessages = {}, includeFieldPath = true, nestedErrors = false } = options;
 
-  return (data: unknown): Record<string, unknown> => {
+  return (data: unknown): Record<string, string> | NestedErrors => {
     try {
       // Aplicar transformação se fornecida
       const dataToValidate = transform ? transform(data) : data;
@@ -80,34 +67,123 @@ export function zodWrapper<T>(
         const zodError = error as ZodError;
         
         if (nestedErrors) {
-          // Retornar erros em estrutura aninhada
-          const errors: Record<string, unknown> = {};
+          // Retornar erros mantendo a estrutura aninhada
+          const errors: NestedErrors = {};
 
+          // Primeiro, identificar quais objetos estão ausentes e criar objetos vazios para eles
+          const missingObjects: string[] = [];
           zodError.issues.forEach((issue) => {
-            // Usar mensagem customizada se disponível, senão usar a do Zod
-            const fieldPath = issue.path.join('.');
-            const errorMessage = customErrorMessages[fieldPath] || issue.message;
-
-            // Construir objeto aninhado
-            setNestedValue(errors, issue.path, errorMessage);
+            if (issue.code === 'invalid_type' && issue.expected === 'object' && issue.path.length === 1) {
+              missingObjects.push(issue.path[0].toString());
+            }
           });
+
+          // Se há objetos ausentes, criar um novo objeto com eles como objetos vazios e validar novamente
+          if (missingObjects.length > 0) {
+            const testData = { ...(data as Record<string, unknown>) };
+            missingObjects.forEach(key => {
+              testData[key] = {};
+            });
+
+            try {
+              schema.parse(testData);
+            } catch (nestedError) {
+              if (nestedError instanceof Error && 'issues' in nestedError) {
+                const nestedZodError = nestedError as ZodError;
+                nestedZodError.issues.forEach((issue) => {
+                  const path = issue.path;
+                  const fieldPath = path.join('.');
+                  const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+                  // Construir objeto aninhado
+                  let current: NestedErrors = errors;
+                  for (let i = 0; i < path.length - 1; i++) {
+                    const key = path[i].toString();
+                    if (!current[key]) {
+                      current[key] = {};
+                    }
+                    current = current[key] as Record<string, string>;
+                  }
+                  
+                  const lastKey = path[path.length - 1]?.toString() || 'root';
+                  current[lastKey] = errorMessage;
+                });
+              }
+            }
+          } else {
+            // Processar erros normalmente se não há objetos ausentes
+            zodError.issues.forEach((issue) => {
+              const path = issue.path;
+              const fieldPath = path.join('.');
+              const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+              // Construir objeto aninhado
+              let current = errors;
+              for (let i = 0; i < path.length - 1; i++) {
+                const key = path[i].toString();
+                if (!current[key]) {
+                  current[key] = {};
+                }
+                current = current[key] as Record<string, string>;
+              }
+              
+              const lastKey = path[path.length - 1]?.toString() || 'root';
+              current[lastKey] = errorMessage;
+            });
+          }
 
           return errors;
         } else {
-          // Retornar erros em formato flat (comportamento original)
+          // Comportamento original com dot notation
           const errors: Record<string, string> = {};
 
+          // Primeiro, identificar quais objetos estão ausentes e criar objetos vazios para eles
+          const missingObjects: string[] = [];
           zodError.issues.forEach((issue) => {
-            // Construir o caminho do campo
-            const fieldPath = includeFieldPath && issue.path.length > 0
-              ? issue.path.join('.')
-              : issue.path[issue.path.length - 1]?.toString() || 'root';
-
-            // Usar mensagem customizada se disponível, senão usar a do Zod
-            const errorMessage = customErrorMessages[fieldPath] || issue.message;
-
-            errors[fieldPath] = errorMessage;
+            if (issue.code === 'invalid_type' && issue.expected === 'object' && issue.path.length === 1) {
+              missingObjects.push(issue.path[0].toString());
+            }
           });
+
+          // Se há objetos ausentes, criar um novo objeto com eles como objetos vazios e validar novamente
+          if (missingObjects.length > 0) {
+            const testData = { ...(data as Record<string, unknown>) };
+            missingObjects.forEach(key => {
+              testData[key] = {};
+            });
+
+            try {
+              schema.parse(testData);
+            } catch (nestedError) {
+              if (nestedError instanceof Error && 'issues' in nestedError) {
+                const nestedZodError = nestedError as ZodError;
+                nestedZodError.issues.forEach((issue) => {
+                  // Construir o caminho do campo
+                  const fieldPath = includeFieldPath && issue.path.length > 0
+                    ? issue.path.join('.')
+                    : issue.path[issue.path.length - 1]?.toString() || 'root';
+
+                  // Usar mensagem customizada se disponível, senão usar a do Zod
+                  const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+                  errors[fieldPath] = errorMessage;
+                });
+              }
+            }
+          } else {
+            // Processar erros normalmente se não há objetos ausentes
+            zodError.issues.forEach((issue) => {
+              // Construir o caminho do campo
+              const fieldPath = includeFieldPath && issue.path.length > 0
+                ? issue.path.join('.')
+                : issue.path[issue.path.length - 1]?.toString() || 'root';
+
+              // Usar mensagem customizada se disponível, senão usar a do Zod
+              const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+              errors[fieldPath] = errorMessage;
+            });
+          }
 
           return errors;
         }
@@ -155,14 +231,16 @@ export function zodWrapperAsync<T>(
     customErrorMessages?: Record<string, string>;
     includeFieldPath?: boolean;
     /**
-     * Retornar erros em estrutura aninhada em vez de dot notation
+     * Retornar erros mantendo a estrutura aninhada do objeto
+     * Se true, retorna { CORRETOR: { NOME: "Required" } }
+     * Se false, retorna { "CORRETOR.NOME": "Required" }
      */
     nestedErrors?: boolean;
   } = {}
 ) {
   const { transform, customErrorMessages = {}, includeFieldPath = true, nestedErrors = false } = options;
 
-  return async (data: unknown): Promise<Record<string, unknown>> => {
+  return async (data: unknown): Promise<Record<string, string> | Record<string, unknown>> => {
     try {
       // Aplicar transformação se fornecida
       const dataToValidate = transform ? await transform(data) : data;
@@ -177,34 +255,123 @@ export function zodWrapperAsync<T>(
         const zodError = error as ZodError;
         
         if (nestedErrors) {
-          // Retornar erros em estrutura aninhada
+          // Retornar erros mantendo a estrutura aninhada
           const errors: Record<string, unknown> = {};
 
+          // Primeiro, identificar quais objetos estão ausentes e criar objetos vazios para eles
+          const missingObjects: string[] = [];
           zodError.issues.forEach((issue) => {
-            // Usar mensagem customizada se disponível, senão usar a do Zod
-            const fieldPath = issue.path.join('.');
-            const errorMessage = customErrorMessages[fieldPath] || issue.message;
-
-            // Construir objeto aninhado
-            setNestedValue(errors, issue.path, errorMessage);
+            if (issue.code === 'invalid_type' && issue.expected === 'object' && issue.path.length === 1) {
+              missingObjects.push(issue.path[0].toString());
+            }
           });
+
+          // Se há objetos ausentes, criar um novo objeto com eles como objetos vazios e validar novamente
+          if (missingObjects.length > 0) {
+            const testData = { ...(data as Record<string, unknown>) };
+            missingObjects.forEach(key => {
+              testData[key] = {};
+            });
+
+            try {
+              schema.parse(testData);
+            } catch (nestedError) {
+              if (nestedError instanceof Error && 'issues' in nestedError) {
+                const nestedZodError = nestedError as ZodError;
+                nestedZodError.issues.forEach((issue) => {
+                  const path = issue.path;
+                  const fieldPath = path.join('.');
+                  const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+                  // Construir objeto aninhado
+                  let current = errors;
+                  for (let i = 0; i < path.length - 1; i++) {
+                    const key = path[i].toString();
+                    if (!current[key]) {
+                      current[key] = {};
+                    }
+                    current = current[key] as Record<string, unknown>;
+                  }
+                  
+                  const lastKey = path[path.length - 1]?.toString() || 'root';
+                  current[lastKey] = errorMessage;
+                });
+              }
+            }
+          } else {
+            // Processar erros normalmente se não há objetos ausentes
+            zodError.issues.forEach((issue) => {
+              const path = issue.path;
+              const fieldPath = path.join('.');
+              const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+              // Construir objeto aninhado
+              let current = errors;
+              for (let i = 0; i < path.length - 1; i++) {
+                const key = path[i].toString();
+                if (!current[key]) {
+                  current[key] = {};
+                }
+                current = current[key] as Record<string, unknown>;
+              }
+              
+              const lastKey = path[path.length - 1]?.toString() || 'root';
+              current[lastKey] = errorMessage;
+            });
+          }
 
           return errors;
         } else {
-          // Retornar erros em formato flat (comportamento original)
+          // Comportamento original com dot notation
           const errors: Record<string, string> = {};
 
+          // Primeiro, identificar quais objetos estão ausentes e criar objetos vazios para eles
+          const missingObjects: string[] = [];
           zodError.issues.forEach((issue) => {
-            // Construir o caminho do campo
-            const fieldPath = includeFieldPath && issue.path.length > 0
-              ? issue.path.join('.')
-              : issue.path[issue.path.length - 1]?.toString() || 'root';
-
-            // Usar mensagem customizada se disponível, senão usar a do Zod
-            const errorMessage = customErrorMessages[fieldPath] || issue.message;
-
-            errors[fieldPath] = errorMessage;
+            if (issue.code === 'invalid_type' && issue.expected === 'object' && issue.path.length === 1) {
+              missingObjects.push(issue.path[0].toString());
+            }
           });
+
+          // Se há objetos ausentes, criar um novo objeto com eles como objetos vazios e validar novamente
+          if (missingObjects.length > 0) {
+            const testData = { ...(data as Record<string, unknown>) };
+            missingObjects.forEach(key => {
+              testData[key] = {};
+            });
+
+            try {
+              schema.parse(testData);
+            } catch (nestedError) {
+              if (nestedError instanceof Error && 'issues' in nestedError) {
+                const nestedZodError = nestedError as ZodError;
+                nestedZodError.issues.forEach((issue) => {
+                  // Construir o caminho do campo
+                  const fieldPath = includeFieldPath && issue.path.length > 0
+                    ? issue.path.join('.')
+                    : issue.path[issue.path.length - 1]?.toString() || 'root';
+
+                  // Usar mensagem customizada se disponível, senão usar a do Zod
+                  const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+                  errors[fieldPath] = errorMessage;
+                });
+              }
+            }
+          } else {
+            // Processar erros normalmente se não há objetos ausentes
+            zodError.issues.forEach((issue) => {
+              // Construir o caminho do campo
+              const fieldPath = includeFieldPath && issue.path.length > 0
+                ? issue.path.join('.')
+                : issue.path[issue.path.length - 1]?.toString() || 'root';
+
+              // Usar mensagem customizada se disponível, senão usar a do Zod
+              const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+              errors[fieldPath] = errorMessage;
+            });
+          }
 
           return errors;
         }
@@ -311,7 +478,7 @@ export function conditionalZodSchema<T, U>(
   condition: (data: unknown) => boolean,
   trueSchema: ZodSchema<T>,
   falseSchema: ZodSchema<U>
-): ZodSchema<T | U> {
+) {
   return z.unknown().superRefine((data, ctx) => {
     const schema = condition(data) ? trueSchema : falseSchema;
     const result = schema.safeParse(data);
@@ -321,5 +488,5 @@ export function conditionalZodSchema<T, U>(
         ctx.addIssue(issue);
       });
     }
-  }) as ZodSchema<T | U>;
+  });
 } 

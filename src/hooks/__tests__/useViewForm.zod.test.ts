@@ -162,104 +162,68 @@ describe('useViewForm.zod', () => {
       });
     });
 
-    it('deve retornar erros em estrutura aninhada quando nestedErrors=true', () => {
+    it('deve retornar erros aninhados quando nestedErrors=true', () => {
       const schema = z.object({
         CORRETOR: z.object({
           NOME: z.string().min(1, 'Nome é obrigatório'),
+          EMAIL: z.string().email('Email inválido'),
         }),
         USER_NAME: z.string().min(1, 'Login é obrigatório'),
-        SENHA: z.string().min(1, 'Senha é obrigatória'),
-      });
-
-      const validate = zodWrapper(schema, { nestedErrors: true });
-      const result = validate({
-        CORRETOR: {
-          NOME: '',
-        },
-        USER_NAME: '',
-        SENHA: '',
-      });
-
-      expect(result).toEqual({
-        CORRETOR: {
-          NOME: 'Nome é obrigatório',
-        },
-        USER_NAME: 'Login é obrigatório',
-        SENHA: 'Senha é obrigatória',
-      });
-    });
-
-    it('deve retornar erros em dot notation quando nestedErrors=false (padrão)', () => {
-      const schema = z.object({
-        CORRETOR: z.object({
-          NOME: z.string().min(1, 'Nome é obrigatório'),
-        }),
-        USER_NAME: z.string().min(1, 'Login é obrigatório'),
-      });
-
-      const validate = zodWrapper(schema, { nestedErrors: false });
-      const result = validate({
-        CORRETOR: {
-          NOME: '',
-        },
-        USER_NAME: '',
-      });
-
-      expect(result).toEqual({
-        'CORRETOR.NOME': 'Nome é obrigatório',
-        'USER_NAME': 'Login é obrigatório',
-      });
-    });
-
-    it('deve funcionar com campos aninhados profundos usando nestedErrors', () => {
-      const schema = z.object({
-        user: z.object({
-          profile: z.object({
-            personal: z.object({
-              name: z.string().min(1, 'Nome é obrigatório'),
-              age: z.number().min(1, 'Idade é obrigatória'),
-            }),
+        ENDERECO: z.object({
+          RUA: z.string().min(1, 'Rua é obrigatória'),
+          CIDADE: z.object({
+            NOME: z.string().min(1, 'Nome da cidade é obrigatório'),
           }),
         }),
-        settings: z.object({
-          theme: z.string().min(1, 'Tema é obrigatório'),
-        }),
       });
 
       const validate = zodWrapper(schema, { nestedErrors: true });
-      const result = validate({
-        user: {
-          profile: {
-            personal: {
-              name: '',
-              age: 0,
-            },
-          },
-        },
-        settings: {
-          theme: '',
-        },
-      });
+      const result = validate({});
 
       expect(result).toEqual({
-        user: {
-          profile: {
-            personal: {
-              name: 'Nome é obrigatório',
-              age: 'Idade é obrigatória',
-            },
-          },
+        CORRETOR: {
+          NOME: 'Required',
+          EMAIL: 'Required',
         },
-        settings: {
-          theme: 'Tema é obrigatório',
+        USER_NAME: 'Required',
+        ENDERECO: {
+          RUA: 'Required',
+          CIDADE: 'Required',
         },
       });
     });
 
-    it('deve usar mensagens customizadas com nestedErrors', () => {
+    it('deve retornar erros aninhados parciais quando alguns campos são válidos', () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1, 'Nome é obrigatório'),
+          EMAIL: z.string().email('Email inválido'),
+        }),
+        USER_NAME: z.string().min(1, 'Login é obrigatório'),
+      });
+
+      const validate = zodWrapper(schema, { nestedErrors: true });
+      const result = validate({
+        CORRETOR: {
+          NOME: 'João Silva', // válido
+          EMAIL: 'email-inválido', // inválido
+        },
+        // USER_NAME ausente - inválido
+      });
+
+      expect(result).toEqual({
+        CORRETOR: {
+          EMAIL: 'Email inválido',
+        },
+        USER_NAME: 'Required',
+      });
+    });
+
+    it('deve usar mensagens customizadas com nestedErrors=true', () => {
       const schema = z.object({
         CORRETOR: z.object({
           NOME: z.string().min(1),
+          EMAIL: z.string().email(),
         }),
         USER_NAME: z.string().min(1),
       });
@@ -268,22 +232,65 @@ describe('useViewForm.zod', () => {
         nestedErrors: true,
         customErrorMessages: {
           'CORRETOR.NOME': 'Nome personalizado é obrigatório',
+          'CORRETOR.EMAIL': 'Email personalizado inválido',
           'USER_NAME': 'Login personalizado é obrigatório',
         },
       });
 
-      const result = validate({
-        CORRETOR: {
-          NOME: '',
-        },
-        USER_NAME: '',
-      });
+      const result = validate({});
 
       expect(result).toEqual({
         CORRETOR: {
           NOME: 'Nome personalizado é obrigatório',
+          EMAIL: 'Email personalizado inválido',
         },
         USER_NAME: 'Login personalizado é obrigatório',
+      });
+    });
+
+    it('deve manter comportamento original quando nestedErrors=false', () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1, 'Nome é obrigatório'),
+        }),
+        USER_NAME: z.string().min(1, 'Login é obrigatório'),
+      });
+
+      const validate = zodWrapper(schema, { nestedErrors: false });
+      const result = validate({});
+
+      expect(result).toEqual({
+        'CORRETOR.NOME': 'Required',
+        'USER_NAME': 'Required',
+      });
+    });
+
+    it('deve funcionar com arrays aninhados', () => {
+      const schema = z.object({
+        ITEMS: z.array(z.object({
+          TITULO: z.string().min(1, 'Título é obrigatório'),
+          PRECO: z.number().positive('Preço deve ser positivo'),
+        })),
+      });
+
+      const validate = zodWrapper(schema, { nestedErrors: true });
+      const result = validate({
+        ITEMS: [
+          { TITULO: '', PRECO: -10 }, // ambos inválidos
+          { TITULO: 'Item 2', PRECO: 0 }, // preço inválido
+        ],
+      });
+
+      expect(result).toEqual({
+        ITEMS: {
+          '0': {
+            TITULO: 'Título é obrigatório',
+            PRECO: 'Preço deve ser positivo',
+          },
+          '1': {
+            PRECO: 'Preço deve ser positivo',
+          },
+        },
       });
     });
   });
@@ -358,49 +365,52 @@ describe('useViewForm.zod', () => {
       expect(result).toEqual({});
     });
 
-    it('deve retornar erros em estrutura aninhada quando nestedErrors=true (async)', async () => {
+    it('deve retornar erros aninhados quando nestedErrors=true (async)', async () => {
       const schema = z.object({
         CORRETOR: z.object({
           NOME: z.string().min(1, 'Nome é obrigatório'),
+          EMAIL: z.string().email('Email inválido'),
         }),
         USER_NAME: z.string().min(1, 'Login é obrigatório'),
       });
 
       const validate = zodWrapperAsync(schema, { nestedErrors: true });
-      const result = await validate({
-        CORRETOR: {
-          NOME: '',
-        },
-        USER_NAME: '',
-      });
+      const result = await validate({});
 
       expect(result).toEqual({
         CORRETOR: {
-          NOME: 'Nome é obrigatório',
+          NOME: 'Required',
+          EMAIL: 'Required',
         },
-        USER_NAME: 'Login é obrigatório',
+        USER_NAME: 'Required',
       });
     });
 
-    it('deve retornar erros em dot notation quando nestedErrors=false (async)', async () => {
+    it('deve funcionar com validação assíncrona e nestedErrors=true', async () => {
       const schema = z.object({
-        CORRETOR: z.object({
-          NOME: z.string().min(1, 'Nome é obrigatório'),
+        USER: z.object({
+          EMAIL: z.string().email().refine(async (email) => {
+            await new Promise(resolve => setTimeout(resolve, 10));
+            return email !== 'taken@test.com';
+          }, 'Email já está em uso'),
+          NAME: z.string().min(1, 'Nome é obrigatório'),
         }),
-        USER_NAME: z.string().min(1, 'Login é obrigatório'),
       });
 
-      const validate = zodWrapperAsync(schema, { nestedErrors: false });
+      const validate = zodWrapperAsync(schema, { nestedErrors: true });
+      
       const result = await validate({
-        CORRETOR: {
-          NOME: '',
+        USER: {
+          EMAIL: 'taken@test.com',
+          NAME: '', // também inválido
         },
-        USER_NAME: '',
       });
 
       expect(result).toEqual({
-        'CORRETOR.NOME': 'Nome é obrigatório',
-        'USER_NAME': 'Login é obrigatório',
+        USER: {
+          EMAIL: 'Email já está em uso',
+          NAME: 'Nome é obrigatório',
+        },
       });
     });
   });
@@ -657,45 +667,6 @@ describe('useViewForm.zod', () => {
       expect(invalidResult).toEqual({
         email: 'Email já está em uso',
       });
-    });
-
-    it('deve funcionar com nestedErrors no useViewForm', () => {
-      const schema = z.object({
-        CORRETOR: z.object({
-          NOME: z.string().min(1, 'Nome é obrigatório'),
-          EMAIL: z.string().email('Email inválido'),
-        }),
-        USER_NAME: z.string().min(1, 'Login é obrigatório'),
-        SENHA: z.string().min(8, 'Senha deve ter pelo menos 8 caracteres'),
-      });
-
-      // Usar nestedErrors para manter estrutura aninhada
-      const validateData = zodWrapper(schema, { nestedErrors: true });
-
-      const result = validateData({
-        CORRETOR: {
-          NOME: '',
-          EMAIL: 'email-inválido',
-        },
-        USER_NAME: '',
-        SENHA: '123',
-      });
-
-      // Resultado mantém a estrutura aninhada
-      expect(result).toEqual({
-        CORRETOR: {
-          NOME: 'Nome é obrigatório',
-          EMAIL: 'Email inválido',
-        },
-        USER_NAME: 'Login é obrigatório',
-        SENHA: 'Senha deve ter pelo menos 8 caracteres',
-      });
-
-      // Verificar que é um objeto aninhado, não dot notation
-      expect(result.CORRETOR).toBeDefined();
-      expect(typeof result.CORRETOR).toBe('object');
-      expect(result.CORRETOR.NOME).toBe('Nome é obrigatório');
-      expect(result.CORRETOR.EMAIL).toBe('Email inválido');
     });
   });
 }); 
