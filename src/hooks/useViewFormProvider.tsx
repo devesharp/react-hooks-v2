@@ -5,6 +5,7 @@ import {
   IPathValue,
 } from "./useViewForm.interfaces";
 import { IResolve } from "./useView.interfaces";
+import { T } from "vitest/dist/chunks/reporters.nr4dxCkA";
 
 // Tipo para o retorno do useViewForm
 type UseViewFormReturn<
@@ -58,31 +59,35 @@ export function useFormContext<
 
 // Hook para acessar um campo específico do formulário
 export function useFormField<
-  DataForm = unknown,
-  K extends IPaths<DataForm> = IPaths<DataForm>
+  T = unknown
 >(
-  fieldName: K,
-  defaultValue?: IPathValue<DataForm, K>
+  fieldName: string,
+  defaultValue?: T
 ): {
-  value: IPathValue<DataForm, K>;
-  setValue: (value: IPathValue<DataForm, K>) => void;
+  value: T;
+  setValue: (value: T) => void;
   error: string | undefined;
   setError: (error: string) => void;
 } {
-  const context = useFormContext<DataForm>();
+  const context = useFormContext();
   
   if (!context) {
-    throw new Error("useFormField deve ser usado dentro de um ViewFormProvider");
+    return {
+      value: defaultValue as T,
+      setValue: () => {},
+      error: undefined,
+      setError: () => {},
+    }
   }
 
   const { getField, setField, errors, setFieldErrors } = context;
 
   // Obter o valor atual do campo ou usar o valor padrão
-  const value = getField(fieldName) ?? defaultValue;
+  const value = getField(fieldName as never) ?? defaultValue;
 
   // Função para definir o valor do campo
-  const setValue = (newValue: IPathValue<DataForm, K>) => {
-    setField(fieldName, newValue);
+  const setValue = (newValue: T) => {
+    setField(fieldName as never, newValue as never);
   };
 
   // Obter o erro do campo
@@ -90,11 +95,11 @@ export function useFormField<
 
   // Função para definir erro do campo
   const setError = (errorMessage: string) => {
-    setFieldErrors(fieldName as string, errorMessage);
+    setFieldErrors(fieldName as never, errorMessage);
   };
 
   return {
-    value: value as IPathValue<DataForm, K>,
+    value: value as T,
     setValue,
     error,
     setError,
