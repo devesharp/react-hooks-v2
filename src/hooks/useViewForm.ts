@@ -379,7 +379,7 @@ export function useViewForm<
    * Só executa quando há uma mudança real no ID, não durante hot reload
    */
   useEffect(() => {
-    if (previousIdRef.current !== id) {
+    if (previousIdRef.current != id) {
       setResource(initialData);
       setOriginalResource({});
       previousIdRef.current = id;

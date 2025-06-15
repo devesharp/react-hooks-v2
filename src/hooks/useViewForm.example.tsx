@@ -35,13 +35,13 @@ const api = {
   },
 
   // Criar usuário
-  createUser: async (data: any) => {
+  createUser: async (data: UserFormData) => {
     console.log('Criando usuário:', data);
     return { id: Date.now(), ...data };
   },
 
   // Atualizar usuário
-  updateUser: async (id: number, data: any) => {
+  updateUser: async (id: number, data: UserFormData) => {
     console.log(`Atualizando usuário ${id}:`, data);
     return { id, ...data };
   },
