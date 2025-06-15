@@ -89,6 +89,12 @@ export function useView<T extends Record<string, IResolve>>({
    */
   const runAllResolver = useCallback(
     async (_firstLoad = true): Promise<Partial<IResolvedValues<T>>> => {
+      let hasErrors = false;
+
+      // Processa os resultados
+      const successfulResults: Partial<IResolvedValues<T>> = {};
+      const errorResults: { [K in keyof T]?: Error } = {};
+
       if (
         !resolves.current ||
         Object.values(resolves.current).length === 0 ||
@@ -96,39 +102,34 @@ export function useView<T extends Record<string, IResolve>>({
       ) {
         setResolvesResponse({});
         return {};
-      }
-
-      const keys = Object.keys(resolves.current) as (keyof T)[];
-      const promises = keys.map(async (key) => {
-        try {
-          const result = await runResolver(key);
-          return { key, result, success: true };
-        } catch (error) {
-          return { key, error, success: false };
-        }
-      });
-
-      const results = await Promise.allSettled(promises);
-
-      // Processa os resultados
-      const successfulResults: Partial<IResolvedValues<T>> = {};
-      const errorResults: { [K in keyof T]?: Error } = {};
-      let hasErrors = false;
-
-      results.forEach((result) => {
-        if (result.status === "fulfilled") {
-          const { key, result: data, success, error } = result.value;
-          if (success) {
-            successfulResults[key] = data as unknown as IExtractResolverType<
-              T[keyof T]
-            >;
-          } else {
-            errorResults[key] =
-              error instanceof Error ? error : new Error(String(error));
-            hasErrors = true;
+      } else {
+        const keys = Object.keys(resolves.current) as (keyof T)[];
+        const promises = keys.map(async (key) => {
+          try {
+            const result = await runResolver(key);
+            return { key, result, success: true };
+          } catch (error) {
+            return { key, error, success: false };
           }
-        }
-      });
+        });
+
+        const results = await Promise.allSettled(promises);
+
+        results.forEach((result) => {
+          if (result.status === "fulfilled") {
+            const { key, result: data, success, error } = result.value;
+            if (success) {
+              successfulResults[key] = data as unknown as IExtractResolverType<
+                T[keyof T]
+              >;
+            } else {
+              errorResults[key] =
+                error instanceof Error ? error : new Error(String(error));
+              hasErrors = true;
+            }
+          }
+        });
+      }
 
       // Chama os callbacks
       if (!hasErrors && onStarted) {
