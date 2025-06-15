@@ -193,21 +193,6 @@ describe('useViewFormProvider', () => {
       expect(mockFormData.reloadPage).toHaveBeenCalled();
     });
 
-    it('deve lançar erro quando usado fora do provider', () => {
-      const TestComponent = () => {
-        useFormContext<TestFormData>();
-        return <div>Test</div>;
-      };
-
-      // Capturar erro do console
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      expect(() => render(<TestComponent />)).toThrow(
-        'useFormContext deve ser usado dentro de um ViewFormProvider'
-      );
-
-      consoleSpy.mockRestore();
-    });
   });
 
   describe('useFormField', () => {
@@ -386,21 +371,6 @@ describe('useViewFormProvider', () => {
       expect(mockFormData.setField).toHaveBeenCalledWith('nested.deep.property', 'New Deep');
     });
 
-    it('deve lançar erro quando usado fora do provider', () => {
-      const TestComponent = () => {
-        useFormField<TestFormData, 'name'>('name');
-        return <div>Test</div>;
-      };
-
-      // Capturar erro do console
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      expect(() => render(<TestComponent />)).toThrow(
-        'useFormContext deve ser usado dentro de um ViewFormProvider'
-      );
-
-      consoleSpy.mockRestore();
-    });
   });
 
   describe('Integração completa', () => {

@@ -45,10 +45,6 @@ export function useFormContext<
 >(): UseViewFormReturn<DataForm, IDType, TResolves> {
   const context = useContext(ViewFormContext);
   
-  if (!context) {
-    throw new Error("useFormContext deve ser usado dentro de um ViewFormProvider");
-  }
-  
   return context as UseViewFormReturn<DataForm, IDType, TResolves>;
 }
 
