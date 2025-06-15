@@ -33,7 +33,7 @@ export function useViewList<
   const [resources, setResources] = useState<IResource[]>([]);
   const [resourcesTotal, setResourcesTotal] = useState(0);
   const [filters, _setFilters] = useState<
-    { offset: number; sort: SortValue | null } & Partial<IFilter>
+    { offset: number; sort: SortValue } & Partial<IFilter>
   >({
     offset: initialOffset,
     sort: initialSort,
@@ -46,7 +46,7 @@ export function useViewList<
    * Isso permite que possamos executar `retry()` posteriormente
    * e também reverter o offset caso ocorra erro ao navegar entre páginas.
    */
-  const lastAttemptedFiltersRef = useRef<{ offset: number; sort: SortValue | null } & Partial<IFilter>>(
+  const lastAttemptedFiltersRef = useRef<{ offset: number; sort: SortValue } & Partial<IFilter>>(
     filters
   );
 
@@ -134,7 +134,7 @@ export function useViewList<
       sort: initialSort,
       ...filtersDefaultOriginal,
       ...newFilters,
-    } as { offset: number; sort: SortValue | null } & Partial<IFilter>;
+    } as { offset: number; sort: SortValue } & Partial<IFilter>;
 
     // Verifica se houve mudança efetiva nos filtros
     const hasChanged =
@@ -191,7 +191,7 @@ export function useViewList<
    * controle do offset anterior para rollback em caso de erro.
    */
   async function runSearchWithFilters(
-    filtersToApply: { offset: number; sort: SortValue | null } & Partial<IFilter>,
+    filtersToApply: { offset: number; sort: SortValue } & Partial<IFilter>,
     previousOffset: number = filters.offset
   ) {
     // Memoriza a última requisição feita
@@ -282,7 +282,7 @@ export function useViewList<
    * Atualiza a ordenação e executa nova busca mantendo o offset atual.
    * @param sort Nova ordenação a ser aplicada (null para remover ordenação)
    */
-  function setSort(sort: SortValue | null) {
+  function setSort(sort: SortValue) {
     runSearchWithFilters({ ...filters, sort }, filters.offset);
   }
 
