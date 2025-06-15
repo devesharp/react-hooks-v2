@@ -1,6 +1,24 @@
 import { z, type ZodSchema, type ZodError } from 'zod';
 
 /**
+ * Helper para construir objeto aninhado a partir de um path e valor
+ */
+function setNestedValue(obj: any, path: (string | number)[], value: any): void {
+  if (path.length === 0) return;
+  
+  if (path.length === 1) {
+    obj[path[0]] = value;
+    return;
+  }
+  
+  const [head, ...tail] = path;
+  if (!(head in obj)) {
+    obj[head] = {};
+  }
+  setNestedValue(obj[head], tail, value);
+}
+
+/**
  * Wrapper para usar schemas Zod com validateData do useViewForm
  * 
  * @param schema - Schema Zod para validação
@@ -39,11 +57,15 @@ export function zodWrapper<T>(
      * Incluir path completo do campo no erro (ex: "address.street")
      */
     includeFieldPath?: boolean;
+    /**
+     * Retornar erros em estrutura aninhada em vez de dot notation
+     */
+    nestedErrors?: boolean;
   } = {}
 ) {
-  const { transform, customErrorMessages = {}, includeFieldPath = true } = options;
+  const { transform, customErrorMessages = {}, includeFieldPath = true, nestedErrors = false } = options;
 
-  return (data: unknown): Record<string, string> => {
+  return (data: unknown): Record<string, any> => {
     try {
       // Aplicar transformação se fornecida
       const dataToValidate = transform ? transform(data) : data;
@@ -56,21 +78,39 @@ export function zodWrapper<T>(
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
         const zodError = error as ZodError;
-        const errors: Record<string, string> = {};
+        
+        if (nestedErrors) {
+          // Retornar erros em estrutura aninhada
+          const errors: Record<string, any> = {};
 
-        zodError.issues.forEach((issue) => {
-          // Construir o caminho do campo
-          const fieldPath = includeFieldPath && issue.path.length > 0
-            ? issue.path.join('.')
-            : issue.path[issue.path.length - 1]?.toString() || 'root';
+          zodError.issues.forEach((issue) => {
+            // Usar mensagem customizada se disponível, senão usar a do Zod
+            const fieldPath = issue.path.join('.');
+            const errorMessage = customErrorMessages[fieldPath] || issue.message;
 
-          // Usar mensagem customizada se disponível, senão usar a do Zod
-          const errorMessage = customErrorMessages[fieldPath] || issue.message;
+            // Construir objeto aninhado
+            setNestedValue(errors, issue.path, errorMessage);
+          });
 
-          errors[fieldPath] = errorMessage;
-        });
+          return errors;
+        } else {
+          // Retornar erros em formato flat (comportamento original)
+          const errors: Record<string, string> = {};
 
-        return errors;
+          zodError.issues.forEach((issue) => {
+            // Construir o caminho do campo
+            const fieldPath = includeFieldPath && issue.path.length > 0
+              ? issue.path.join('.')
+              : issue.path[issue.path.length - 1]?.toString() || 'root';
+
+            // Usar mensagem customizada se disponível, senão usar a do Zod
+            const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+            errors[fieldPath] = errorMessage;
+          });
+
+          return errors;
+        }
       }
 
       // Se não for um erro do Zod, retornar erro genérico
@@ -114,11 +154,15 @@ export function zodWrapperAsync<T>(
     transform?: (data: unknown) => unknown | Promise<unknown>;
     customErrorMessages?: Record<string, string>;
     includeFieldPath?: boolean;
+    /**
+     * Retornar erros em estrutura aninhada em vez de dot notation
+     */
+    nestedErrors?: boolean;
   } = {}
 ) {
-  const { transform, customErrorMessages = {}, includeFieldPath = true } = options;
+  const { transform, customErrorMessages = {}, includeFieldPath = true, nestedErrors = false } = options;
 
-  return async (data: unknown): Promise<Record<string, string>> => {
+  return async (data: unknown): Promise<Record<string, any>> => {
     try {
       // Aplicar transformação se fornecida
       const dataToValidate = transform ? await transform(data) : data;
@@ -131,21 +175,39 @@ export function zodWrapperAsync<T>(
     } catch (error) {
       if (error instanceof Error && 'issues' in error) {
         const zodError = error as ZodError;
-        const errors: Record<string, string> = {};
+        
+        if (nestedErrors) {
+          // Retornar erros em estrutura aninhada
+          const errors: Record<string, any> = {};
 
-        zodError.issues.forEach((issue) => {
-          // Construir o caminho do campo
-          const fieldPath = includeFieldPath && issue.path.length > 0
-            ? issue.path.join('.')
-            : issue.path[issue.path.length - 1]?.toString() || 'root';
+          zodError.issues.forEach((issue) => {
+            // Usar mensagem customizada se disponível, senão usar a do Zod
+            const fieldPath = issue.path.join('.');
+            const errorMessage = customErrorMessages[fieldPath] || issue.message;
 
-          // Usar mensagem customizada se disponível, senão usar a do Zod
-          const errorMessage = customErrorMessages[fieldPath] || issue.message;
+            // Construir objeto aninhado
+            setNestedValue(errors, issue.path, errorMessage);
+          });
 
-          errors[fieldPath] = errorMessage;
-        });
+          return errors;
+        } else {
+          // Retornar erros em formato flat (comportamento original)
+          const errors: Record<string, string> = {};
 
-        return errors;
+          zodError.issues.forEach((issue) => {
+            // Construir o caminho do campo
+            const fieldPath = includeFieldPath && issue.path.length > 0
+              ? issue.path.join('.')
+              : issue.path[issue.path.length - 1]?.toString() || 'root';
+
+            // Usar mensagem customizada se disponível, senão usar a do Zod
+            const errorMessage = customErrorMessages[fieldPath] || issue.message;
+
+            errors[fieldPath] = errorMessage;
+          });
+
+          return errors;
+        }
       }
 
       // Se não for um erro do Zod, retornar erro genérico
@@ -245,11 +307,11 @@ export function combineZodSchemas<T extends Record<string, ZodSchema>>(schemas: 
 /**
  * Utilitário para criar schema condicional
  */
-export function conditionalZodSchema<T>(
+export function conditionalZodSchema<T, U>(
   condition: (data: unknown) => boolean,
   trueSchema: ZodSchema<T>,
-  falseSchema: ZodSchema<T>
-) {
+  falseSchema: ZodSchema<U>
+): ZodSchema<T | U> {
   return z.unknown().superRefine((data, ctx) => {
     const schema = condition(data) ? trueSchema : falseSchema;
     const result = schema.safeParse(data);
@@ -259,5 +321,5 @@ export function conditionalZodSchema<T>(
         ctx.addIssue(issue);
       });
     }
-  });
+  }) as ZodSchema<T | U>;
 } 

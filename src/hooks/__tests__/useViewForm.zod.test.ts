@@ -161,6 +161,131 @@ describe('useViewForm.zod', () => {
         root: 'Erro customizado',
       });
     });
+
+    it('deve retornar erros em estrutura aninhada quando nestedErrors=true', () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1, 'Nome é obrigatório'),
+        }),
+        USER_NAME: z.string().min(1, 'Login é obrigatório'),
+        SENHA: z.string().min(1, 'Senha é obrigatória'),
+      });
+
+      const validate = zodWrapper(schema, { nestedErrors: true });
+      const result = validate({
+        CORRETOR: {
+          NOME: '',
+        },
+        USER_NAME: '',
+        SENHA: '',
+      });
+
+      expect(result).toEqual({
+        CORRETOR: {
+          NOME: 'Nome é obrigatório',
+        },
+        USER_NAME: 'Login é obrigatório',
+        SENHA: 'Senha é obrigatória',
+      });
+    });
+
+    it('deve retornar erros em dot notation quando nestedErrors=false (padrão)', () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1, 'Nome é obrigatório'),
+        }),
+        USER_NAME: z.string().min(1, 'Login é obrigatório'),
+      });
+
+      const validate = zodWrapper(schema, { nestedErrors: false });
+      const result = validate({
+        CORRETOR: {
+          NOME: '',
+        },
+        USER_NAME: '',
+      });
+
+      expect(result).toEqual({
+        'CORRETOR.NOME': 'Nome é obrigatório',
+        'USER_NAME': 'Login é obrigatório',
+      });
+    });
+
+    it('deve funcionar com campos aninhados profundos usando nestedErrors', () => {
+      const schema = z.object({
+        user: z.object({
+          profile: z.object({
+            personal: z.object({
+              name: z.string().min(1, 'Nome é obrigatório'),
+              age: z.number().min(1, 'Idade é obrigatória'),
+            }),
+          }),
+        }),
+        settings: z.object({
+          theme: z.string().min(1, 'Tema é obrigatório'),
+        }),
+      });
+
+      const validate = zodWrapper(schema, { nestedErrors: true });
+      const result = validate({
+        user: {
+          profile: {
+            personal: {
+              name: '',
+              age: 0,
+            },
+          },
+        },
+        settings: {
+          theme: '',
+        },
+      });
+
+      expect(result).toEqual({
+        user: {
+          profile: {
+            personal: {
+              name: 'Nome é obrigatório',
+              age: 'Idade é obrigatória',
+            },
+          },
+        },
+        settings: {
+          theme: 'Tema é obrigatório',
+        },
+      });
+    });
+
+    it('deve usar mensagens customizadas com nestedErrors', () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1),
+        }),
+        USER_NAME: z.string().min(1),
+      });
+
+      const validate = zodWrapper(schema, {
+        nestedErrors: true,
+        customErrorMessages: {
+          'CORRETOR.NOME': 'Nome personalizado é obrigatório',
+          'USER_NAME': 'Login personalizado é obrigatório',
+        },
+      });
+
+      const result = validate({
+        CORRETOR: {
+          NOME: '',
+        },
+        USER_NAME: '',
+      });
+
+      expect(result).toEqual({
+        CORRETOR: {
+          NOME: 'Nome personalizado é obrigatório',
+        },
+        USER_NAME: 'Login personalizado é obrigatório',
+      });
+    });
   });
 
   describe('zodWrapperAsync', () => {
@@ -231,6 +356,52 @@ describe('useViewForm.zod', () => {
 
       const result = await validate({ name: '  João  ' });
       expect(result).toEqual({});
+    });
+
+    it('deve retornar erros em estrutura aninhada quando nestedErrors=true (async)', async () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1, 'Nome é obrigatório'),
+        }),
+        USER_NAME: z.string().min(1, 'Login é obrigatório'),
+      });
+
+      const validate = zodWrapperAsync(schema, { nestedErrors: true });
+      const result = await validate({
+        CORRETOR: {
+          NOME: '',
+        },
+        USER_NAME: '',
+      });
+
+      expect(result).toEqual({
+        CORRETOR: {
+          NOME: 'Nome é obrigatório',
+        },
+        USER_NAME: 'Login é obrigatório',
+      });
+    });
+
+    it('deve retornar erros em dot notation quando nestedErrors=false (async)', async () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1, 'Nome é obrigatório'),
+        }),
+        USER_NAME: z.string().min(1, 'Login é obrigatório'),
+      });
+
+      const validate = zodWrapperAsync(schema, { nestedErrors: false });
+      const result = await validate({
+        CORRETOR: {
+          NOME: '',
+        },
+        USER_NAME: '',
+      });
+
+      expect(result).toEqual({
+        'CORRETOR.NOME': 'Nome é obrigatório',
+        'USER_NAME': 'Login é obrigatório',
+      });
     });
   });
 
@@ -486,6 +657,45 @@ describe('useViewForm.zod', () => {
       expect(invalidResult).toEqual({
         email: 'Email já está em uso',
       });
+    });
+
+    it('deve funcionar com nestedErrors no useViewForm', () => {
+      const schema = z.object({
+        CORRETOR: z.object({
+          NOME: z.string().min(1, 'Nome é obrigatório'),
+          EMAIL: z.string().email('Email inválido'),
+        }),
+        USER_NAME: z.string().min(1, 'Login é obrigatório'),
+        SENHA: z.string().min(8, 'Senha deve ter pelo menos 8 caracteres'),
+      });
+
+      // Usar nestedErrors para manter estrutura aninhada
+      const validateData = zodWrapper(schema, { nestedErrors: true });
+
+      const result = validateData({
+        CORRETOR: {
+          NOME: '',
+          EMAIL: 'email-inválido',
+        },
+        USER_NAME: '',
+        SENHA: '123',
+      });
+
+      // Resultado mantém a estrutura aninhada
+      expect(result).toEqual({
+        CORRETOR: {
+          NOME: 'Nome é obrigatório',
+          EMAIL: 'Email inválido',
+        },
+        USER_NAME: 'Login é obrigatório',
+        SENHA: 'Senha deve ter pelo menos 8 caracteres',
+      });
+
+      // Verificar que é um objeto aninhado, não dot notation
+      expect(result.CORRETOR).toBeDefined();
+      expect(typeof result.CORRETOR).toBe('object');
+      expect(result.CORRETOR.NOME).toBe('Nome é obrigatório');
+      expect(result.CORRETOR.EMAIL).toBe('Email inválido');
     });
   });
 }); 

@@ -630,4 +630,401 @@ const validateData = zodWrapper(asyncSchema);
 
 // ✅ Correto
 const validateData = zodWrapperAsync(asyncSchema);
-``` 
+```
+
+## Configurações Avançadas
+
+### Transformação de Dados
+
+Você pode transformar os dados antes da validação:
+
+```typescript
+const validate = zodWrapper(schema, {
+  transform: (data: any) => ({
+    ...data,
+    email: data.email?.toLowerCase(),
+    name: data.name?.trim(),
+  }),
+});
+```
+
+### Mensagens de Erro Personalizadas
+
+```typescript
+const validate = zodWrapper(schema, {
+  customErrorMessages: {
+    'user.name': 'Nome personalizado é obrigatório',
+    'user.email': 'Email personalizado inválido',
+  },
+});
+```
+
+### Controle de Path nos Erros
+
+```typescript
+// Com path completo (padrão)
+const validateWithPath = zodWrapper(schema, { includeFieldPath: true });
+// Resultado: { 'user.name': 'erro' }
+
+// Sem path completo
+const validateWithoutPath = zodWrapper(schema, { includeFieldPath: false });
+// Resultado: { name: 'erro' }
+```
+
+### Estrutura de Erros Aninhada
+
+**Nova funcionalidade**: Você pode escolher entre retornar erros em formato flat (dot notation) ou em estrutura aninhada:
+
+```typescript
+const schema = z.object({
+  CORRETOR: z.object({
+    NOME: z.string().min(1, "Nome é obrigatório"),
+    EMAIL: z.string().email("Email inválido"),
+  }),
+  USER_NAME: z.string().min(1, "Login é obrigatório"),
+  SENHA: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
+});
+
+// Formato flat (padrão) - dot notation
+const validateFlat = zodWrapper(schema, { nestedErrors: false });
+const flatResult = validateFlat({
+  CORRETOR: { NOME: '', EMAIL: 'invalid' },
+  USER_NAME: '',
+  SENHA: '123',
+});
+// Resultado:
+// {
+//   'CORRETOR.NOME': 'Nome é obrigatório',
+//   'CORRETOR.EMAIL': 'Email inválido',
+//   'USER_NAME': 'Login é obrigatório',
+//   'SENHA': 'Senha deve ter pelo menos 8 caracteres'
+// }
+
+// Formato aninhado - mantém estrutura do objeto
+const validateNested = zodWrapper(schema, { nestedErrors: true });
+const nestedResult = validateNested({
+  CORRETOR: { NOME: '', EMAIL: 'invalid' },
+  USER_NAME: '',
+  SENHA: '123',
+});
+// Resultado:
+// {
+//   CORRETOR: {
+//     NOME: 'Nome é obrigatório',
+//     EMAIL: 'Email inválido'
+//   },
+//   USER_NAME: 'Login é obrigatório',
+//   SENHA: 'Senha deve ter pelo menos 8 caracteres'
+// }
+```
+
+#### Quando usar cada formato?
+
+**Use `nestedErrors: false` (padrão)** quando:
+- Você quer compatibilidade com `getFieldError` e `setFieldError` do `useViewForm`
+- Precisa acessar erros usando dot notation
+- Quer integração simples com `useFormField`
+
+**Use `nestedErrors: true`** quando:
+- Você quer manter a estrutura original do objeto
+- Precisa iterar sobre erros de forma hierárquica
+- Quer exibir erros agrupados por seção do formulário
+
+#### Exemplo prático com useViewForm
+
+```typescript
+interface FormData {
+  CORRETOR: {
+    NOME: string;
+    EMAIL: string;
+  };
+  USER_NAME: string;
+  SENHA: string;
+}
+
+// Para usar com getFieldError/setFieldError (dot notation)
+const { getFieldError, setFieldError } = useViewForm<FormData>({
+  validateData: zodWrapper(schema, { nestedErrors: false }),
+  // ...
+});
+
+// Acessar erros específicos
+const nomeError = getFieldError('CORRETOR.NOME');
+setFieldError('CORRETOR.EMAIL', 'Email já está em uso');
+
+// Para usar com estrutura aninhada
+const { errors } = useViewForm<FormData>({
+  validateData: zodWrapper(schema, { nestedErrors: true }),
+  // ...
+});
+
+// Acessar erros aninhados
+if (errors.CORRETOR?.NOME) {
+  console.log('Erro no nome:', errors.CORRETOR.NOME);
+}
+```
+
+## Exemplo Completo: Formulário de Cadastro
+
+Aqui está um exemplo completo mostrando como usar a nova funcionalidade `nestedErrors`:
+
+```typescript
+import { z } from 'zod';
+import { zodWrapper } from './useViewForm.zod';
+import { useViewForm } from './useViewForm';
+
+// Schema do formulário
+const cadastroSchema = z.object({
+  CORRETOR: z.object({
+    NOME: z.string().min(1, "Nome é obrigatório"),
+    EMAIL: z.string().email("Email inválido"),
+    TELEFONE: z.string().min(10, "Telefone deve ter pelo menos 10 dígitos"),
+  }),
+  EMPRESA: z.object({
+    NOME: z.string().min(1, "Nome da empresa é obrigatório"),
+    CNPJ: z.string().regex(/^\d{14}$/, "CNPJ deve ter 14 dígitos"),
+  }),
+  USER_NAME: z.string().min(3, "Login deve ter pelo menos 3 caracteres"),
+  SENHA: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
+});
+
+interface CadastroForm {
+  CORRETOR: {
+    NOME: string;
+    EMAIL: string;
+    TELEFONE: string;
+  };
+  EMPRESA: {
+    NOME: string;
+    CNPJ: string;
+  };
+  USER_NAME: string;
+  SENHA: string;
+}
+
+function CadastroFormComponent() {
+  const {
+    resource,
+    setField,
+    getFieldError,
+    setFieldError,
+    errors,
+    submitForm,
+    isSaving
+  } = useViewForm<CadastroForm>({
+    initialData: {
+      CORRETOR: { NOME: '', EMAIL: '', TELEFONE: '' },
+      EMPRESA: { NOME: '', CNPJ: '' },
+      USER_NAME: '',
+      SENHA: '',
+    },
+    // Usar nestedErrors: false para compatibilidade com getFieldError/setFieldError
+    validateData: zodWrapper(cadastroSchema, { nestedErrors: false }),
+    resolveCreate: async (data) => {
+      // Simular API call
+      const response = await fetch('/api/cadastro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      alert('Cadastro realizado com sucesso!');
+    },
+  });
+
+  // Validação customizada para verificar se email já existe
+  const handleEmailBlur = async () => {
+    const email = resource.CORRETOR?.EMAIL;
+    if (email && !getFieldError('CORRETOR.EMAIL')) {
+      try {
+        const response = await fetch(`/api/check-email/${email}`);
+        if (!response.ok) {
+          setFieldError('CORRETOR.EMAIL', 'Email já está em uso');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar email:', error);
+      }
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); submitForm(); }}>
+      {/* Seção Corretor */}
+      <fieldset>
+        <legend>Dados do Corretor</legend>
+        
+        <div>
+          <label>Nome:</label>
+          <input
+            value={resource.CORRETOR?.NOME || ''}
+            onChange={(e) => setField('CORRETOR.NOME', e.target.value)}
+          />
+          {getFieldError('CORRETOR.NOME') && (
+            <span className="error">{getFieldError('CORRETOR.NOME')}</span>
+          )}
+        </div>
+
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            value={resource.CORRETOR?.EMAIL || ''}
+            onChange={(e) => setField('CORRETOR.EMAIL', e.target.value)}
+            onBlur={handleEmailBlur}
+          />
+          {getFieldError('CORRETOR.EMAIL') && (
+            <span className="error">{getFieldError('CORRETOR.EMAIL')}</span>
+          )}
+        </div>
+
+        <div>
+          <label>Telefone:</label>
+          <input
+            value={resource.CORRETOR?.TELEFONE || ''}
+            onChange={(e) => setField('CORRETOR.TELEFONE', e.target.value)}
+          />
+          {getFieldError('CORRETOR.TELEFONE') && (
+            <span className="error">{getFieldError('CORRETOR.TELEFONE')}</span>
+          )}
+        </div>
+      </fieldset>
+
+      {/* Seção Empresa */}
+      <fieldset>
+        <legend>Dados da Empresa</legend>
+        
+        <div>
+          <label>Nome da Empresa:</label>
+          <input
+            value={resource.EMPRESA?.NOME || ''}
+            onChange={(e) => setField('EMPRESA.NOME', e.target.value)}
+          />
+          {getFieldError('EMPRESA.NOME') && (
+            <span className="error">{getFieldError('EMPRESA.NOME')}</span>
+          )}
+        </div>
+
+        <div>
+          <label>CNPJ:</label>
+          <input
+            value={resource.EMPRESA?.CNPJ || ''}
+            onChange={(e) => setField('EMPRESA.CNPJ', e.target.value.replace(/\D/g, ''))}
+          />
+          {getFieldError('EMPRESA.CNPJ') && (
+            <span className="error">{getFieldError('EMPRESA.CNPJ')}</span>
+          )}
+        </div>
+      </fieldset>
+
+      {/* Seção Login */}
+      <fieldset>
+        <legend>Dados de Acesso</legend>
+        
+        <div>
+          <label>Login:</label>
+          <input
+            value={resource.USER_NAME || ''}
+            onChange={(e) => setField('USER_NAME', e.target.value)}
+          />
+          {getFieldError('USER_NAME') && (
+            <span className="error">{getFieldError('USER_NAME')}</span>
+          )}
+        </div>
+
+        <div>
+          <label>Senha:</label>
+          <input
+            type="password"
+            value={resource.SENHA || ''}
+            onChange={(e) => setField('SENHA', e.target.value)}
+          />
+          {getFieldError('SENHA') && (
+            <span className="error">{getFieldError('SENHA')}</span>
+          )}
+        </div>
+      </fieldset>
+
+      <button type="submit" disabled={isSaving}>
+        {isSaving ? 'Cadastrando...' : 'Cadastrar'}
+      </button>
+    </form>
+  );
+}
+
+export default CadastroFormComponent;
+```
+
+### Alternativa com Estrutura Aninhada
+
+Se você preferir trabalhar com a estrutura aninhada de erros:
+
+```typescript
+function CadastroFormWithNestedErrors() {
+  const {
+    resource,
+    setField,
+    errors,
+    submitForm,
+    isSaving
+  } = useViewForm<CadastroForm>({
+    initialData: {
+      CORRETOR: { NOME: '', EMAIL: '', TELEFONE: '' },
+      EMPRESA: { NOME: '', CNPJ: '' },
+      USER_NAME: '',
+      SENHA: '',
+    },
+    // Usar nestedErrors: true para manter estrutura aninhada
+    validateData: zodWrapper(cadastroSchema, { nestedErrors: true }),
+    // ... outras configurações
+  });
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); submitForm(); }}>
+      {/* Seção Corretor */}
+      <fieldset>
+        <legend>Dados do Corretor</legend>
+        
+        <div>
+          <label>Nome:</label>
+          <input
+            value={resource.CORRETOR?.NOME || ''}
+            onChange={(e) => setField('CORRETOR.NOME', e.target.value)}
+          />
+          {errors.CORRETOR?.NOME && (
+            <span className="error">{errors.CORRETOR.NOME}</span>
+          )}
+        </div>
+
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            value={resource.CORRETOR?.EMAIL || ''}
+            onChange={(e) => setField('CORRETOR.EMAIL', e.target.value)}
+          />
+          {errors.CORRETOR?.EMAIL && (
+            <span className="error">{errors.CORRETOR.EMAIL}</span>
+          )}
+        </div>
+      </fieldset>
+
+      {/* Exibir resumo de erros por seção */}
+      {errors.CORRETOR && Object.keys(errors.CORRETOR).length > 0 && (
+        <div className="error-summary">
+          <h4>Erros nos dados do corretor:</h4>
+          <ul>
+            {Object.entries(errors.CORRETOR).map(([field, error]) => (
+              <li key={field}>{field}: {error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <button type="submit" disabled={isSaving}>
+        {isSaving ? 'Cadastrando...' : 'Cadastrar'}
+      </button>
+    </form>
+  );
+} 
