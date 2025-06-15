@@ -1,11 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useViewForm } from "./useViewForm";
-import {
-  IPaths,
-  IPathValue,
-} from "./useViewForm.interfaces";
 import { IResolve } from "./useView.interfaces";
-import { T } from "vitest/dist/chunks/reporters.nr4dxCkA";
 
 // Tipo para o retorno do useViewForm
 type UseViewFormReturn<
