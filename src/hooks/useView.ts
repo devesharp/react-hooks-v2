@@ -96,13 +96,10 @@ export function useView<T extends Record<string, IResolve>>({
       const errorResults: { [K in keyof T]?: Error } = {};
 
       if (
-        !resolves.current ||
-        Object.values(resolves.current).length === 0 ||
-        !_firstLoad
+        resolves.current &&
+        Object.values(resolves.current).length > 0 &&
+        _firstLoad
       ) {
-        setResolvesResponse({});
-        return {};
-      } else {
         const keys = Object.keys(resolves.current) as (keyof T)[];
         const promises = keys.map(async (key) => {
           try {
