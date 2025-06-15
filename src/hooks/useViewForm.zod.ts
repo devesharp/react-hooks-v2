@@ -3,7 +3,7 @@ import { z, type ZodSchema, type ZodError } from 'zod';
 /**
  * Helper para construir objeto aninhado a partir de um path e valor
  */
-function setNestedValue(obj: any, path: (string | number)[], value: any): void {
+function setNestedValue(obj: Record<string, unknown>, path: (string | number)[], value: unknown): void {
   if (path.length === 0) return;
   
   if (path.length === 1) {
@@ -15,7 +15,7 @@ function setNestedValue(obj: any, path: (string | number)[], value: any): void {
   if (!(head in obj)) {
     obj[head] = {};
   }
-  setNestedValue(obj[head], tail, value);
+  setNestedValue(obj[head] as Record<string, unknown>, tail, value);
 }
 
 /**
@@ -65,7 +65,7 @@ export function zodWrapper<T>(
 ) {
   const { transform, customErrorMessages = {}, includeFieldPath = true, nestedErrors = false } = options;
 
-  return (data: unknown): Record<string, any> => {
+  return (data: unknown): Record<string, unknown> => {
     try {
       // Aplicar transformação se fornecida
       const dataToValidate = transform ? transform(data) : data;
@@ -81,7 +81,7 @@ export function zodWrapper<T>(
         
         if (nestedErrors) {
           // Retornar erros em estrutura aninhada
-          const errors: Record<string, any> = {};
+          const errors: Record<string, unknown> = {};
 
           zodError.issues.forEach((issue) => {
             // Usar mensagem customizada se disponível, senão usar a do Zod
@@ -162,7 +162,7 @@ export function zodWrapperAsync<T>(
 ) {
   const { transform, customErrorMessages = {}, includeFieldPath = true, nestedErrors = false } = options;
 
-  return async (data: unknown): Promise<Record<string, any>> => {
+  return async (data: unknown): Promise<Record<string, unknown>> => {
     try {
       // Aplicar transformação se fornecida
       const dataToValidate = transform ? await transform(data) : data;
@@ -178,7 +178,7 @@ export function zodWrapperAsync<T>(
         
         if (nestedErrors) {
           // Retornar erros em estrutura aninhada
-          const errors: Record<string, any> = {};
+          const errors: Record<string, unknown> = {};
 
           zodError.issues.forEach((issue) => {
             // Usar mensagem customizada se disponível, senão usar a do Zod
