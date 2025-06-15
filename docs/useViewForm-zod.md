@@ -23,6 +23,64 @@ import {
 } from '@devesharp/react-hooks-v2';
 ```
 
+## Funcionalidades Principais
+
+### 1. zodWrapper - Validação Síncrona
+### 2. zodWrapperAsync - Validação Assíncrona  
+### 3. zodSchemas - Schemas Pré-definidos
+### 4. Utilitários Avançados
+
+## Novidades: resolveGet vs resolveGetById
+
+A partir desta versão, o `useViewForm` suporta dois tipos de resolvers para carregamento de dados:
+
+### resolveGetById
+- **Usado quando há ID**: Recebe o ID como parâmetro
+- **Para edição**: Carrega dados específicos de um registro
+
+```typescript
+const viewForm = useViewForm({
+  id: 123,
+  resolveGetById: (id) => api.getUser(id), // Recebe o ID como parâmetro
+});
+```
+
+### resolveGet  
+- **Usado sem necessidade de ID**: Não recebe parâmetros
+- **Para dados gerais**: Carrega dados padrão, configurações, etc.
+
+```typescript
+const viewForm = useViewForm({
+  resolveGet: () => api.getDefaultSettings(), // Sem parâmetros
+});
+```
+
+### Prioridade de Execução
+
+1. **Com ID + resolveGetById**: Usa `resolveGetById(id)`
+2. **Com ID + apenas resolveGet**: Usa `resolveGet()`  
+3. **Sem ID + resolveGet**: Usa `resolveGet()`
+
+```typescript
+// Exemplo: Prioriza resolveGetById quando há ID
+const viewForm = useViewForm({
+  id: 123,
+  resolveGetById: (id) => api.getUser(id),     // ✅ Este será usado
+  resolveGet: () => api.getDefaultUser(),      // ❌ Este será ignorado
+});
+
+// Exemplo: Usa resolveGet quando não há resolveGetById
+const viewForm = useViewForm({
+  id: 123,
+  resolveGet: () => api.getCurrentUser(),      // ✅ Este será usado
+});
+
+// Exemplo: Carregamento sem ID
+const viewForm = useViewForm({
+  resolveGet: () => api.getFormDefaults(),     // ✅ Este será usado
+});
+```
+
 ## Uso Básico
 
 ### 1. Validação Síncrona

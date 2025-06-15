@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useViewForm } from '../useViewForm';
 import { IUseViewFormProps } from '../useViewForm.interfaces';
 
@@ -21,17 +21,40 @@ vi.mock('use-immer', async () => {
 
 // Mock para useView
 vi.mock('../useView', () => ({
-  useView: vi.fn(() => ({
-    statusInfo: {
-      isLoading: false,
-      isStarted: true,
-      isErrorOnLoad: false,
-      isCriticalError: false,
-    },
-    setStatusInfo: vi.fn(),
-    reloadPage: vi.fn().mockResolvedValue({}),
-    resolvesResponse: {},
-  })),
+  useView: vi.fn((props) => {
+    // Simular execução dos resolves
+    if (props.resolves && props.resolves.get && props.firstLoad !== false) {
+      // Executar o resolve get se existir
+      setTimeout(() => {
+        try {
+          const result = props.resolves.get();
+          if (result && typeof result.then === 'function') {
+            result.then((data) => {
+              props.onStarted?.({ get: data });
+            }).catch((error) => {
+              props.onErrorStarted?.({ get: error });
+            });
+          } else {
+            props.onStarted?.({ get: result });
+          }
+        } catch (error) {
+          props.onErrorStarted?.({ get: error });
+        }
+      }, 0);
+    }
+
+    return {
+      statusInfo: {
+        isLoading: false,
+        isStarted: true,
+        isErrorOnLoad: false,
+        isCriticalError: false,
+      },
+      setStatusInfo: vi.fn(),
+      reloadPage: vi.fn().mockResolvedValue({}),
+      resolvesResponse: {},
+    };
+  }),
 }));
 
 // Mock para axios
@@ -107,6 +130,106 @@ describe('useViewForm', () => {
       );
 
       expect(result.current.isEditing).toBe(false);
+    });
+  });
+
+  describe('Resolves de carregamento', () => {
+    it('deve usar resolveGetById quando há ID', async () => {
+      const userData = { id: 123, name: 'João', email: 'joao@test.com' };
+      const resolveGetById = vi.fn().mockResolvedValue(userData);
+      
+      const { result } = renderHook(() => 
+        useViewForm<TestFormData, number>({
+          id: 123,
+          resolveGetById,
+          firstLoad: true,
+        })
+      );
+
+      await waitFor(() => {
+        expect(resolveGetById).toHaveBeenCalledWith(123);
+      });
+    });
+
+    it('deve usar resolveGet quando não há ID', async () => {
+      const userData = { name: 'João', email: 'joao@test.com' };
+      const resolveGet = vi.fn().mockResolvedValue(userData);
+      
+      const { result } = renderHook(() => 
+        useViewForm<TestFormData>({
+          resolveGet,
+          firstLoad: true,
+        })
+      );
+
+      await waitFor(() => {
+        expect(resolveGet).toHaveBeenCalled();
+      });
+    });
+
+    it('deve priorizar resolveGetById quando há ID e ambos os resolves', async () => {
+      const userDataById = { id: 123, name: 'João por ID', email: 'joao@test.com' };
+      const userDataGeneral = { name: 'João geral', email: 'joao@test.com' };
+      const resolveGetById = vi.fn().mockResolvedValue(userDataById);
+      const resolveGet = vi.fn().mockResolvedValue(userDataGeneral);
+      
+      const { result } = renderHook(() => 
+        useViewForm<TestFormData, number>({
+          id: 123,
+          resolveGetById,
+          resolveGet,
+          firstLoad: true,
+        })
+      );
+
+      await waitFor(() => {
+        expect(resolveGetById).toHaveBeenCalledWith(123);
+        expect(resolveGet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('deve usar resolveGet quando há ID mas não há resolveGetById', async () => {
+      const userData = { name: 'João', email: 'joao@test.com' };
+      const resolveGet = vi.fn().mockResolvedValue(userData);
+      
+      const { result } = renderHook(() => 
+        useViewForm<TestFormData, number>({
+          id: 123,
+          resolveGet,
+          firstLoad: true,
+        })
+      );
+
+      await waitFor(() => {
+        expect(resolveGet).toHaveBeenCalled();
+      });
+    });
+
+    it('não deve fazer request quando não há resolves', () => {
+      const { result } = renderHook(() => 
+        useViewForm<TestFormData, number>({
+          id: 123,
+          firstLoad: true,
+        })
+      );
+
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('deve carregar dados com resolveGet sem ID', async () => {
+      const userData = { name: 'Dados padrão', email: 'padrao@test.com' };
+      const resolveGet = vi.fn().mockResolvedValue(userData);
+      
+      renderHook(() => 
+        useViewForm<TestFormData>({
+          resolveGet,
+          firstLoad: true,
+        })
+      );
+
+      await waitFor(() => {
+        expect(resolveGet).toHaveBeenCalled();
+      });
     });
   });
 

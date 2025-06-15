@@ -26,6 +26,7 @@ export function useViewForm<
   onErrorStarted,
   updateResourceOnSave = false,
   resolveGet,
+  resolveGetById,
   initialData = {},
   resolveAction,
   resolveCreate,
@@ -39,12 +40,19 @@ export function useViewForm<
   resolves = {} as TResolves,
   firstLoad = true,
 }: IUseViewFormProps<DataForm, IDType, TResolves>) {
-  // Se houver ID, faz primeira request
+  // Montar resolves do formulário
   const resolvesForm: TResolves & {
     get?: IResolve;
   } = { ...resolves };
 
-  if (id && resolveGet) resolvesForm.get = () => resolveGet(id);
+  // Se houver ID e resolveGetById, usar resolveGetById
+  if (id && resolveGetById) {
+    resolvesForm.get = () => resolveGetById(id);
+  }
+  // Se houver resolveGet (sem necessidade de ID), usar resolveGet
+  else if (resolveGet) {
+    resolvesForm.get = resolveGet;
+  }
 
   const [statusInfoForm, setStatusInfoForm] = useImmerReducer<
     IStatusInfoViewForm,

@@ -83,9 +83,14 @@ export interface IUseViewFormProps<
   ) => Partial<DataForm> | Promise<Partial<DataForm>>;
 
   /**
-   * Resolve para resgatar resource
+   * Resolve para resgatar resource (sem necessidade de ID)
    */
   resolveGet?: IResolve;
+
+  /**
+   * Resolve para resgatar resource por ID
+   */
+  resolveGetById?: IResolve;
 
   /**
    * Resolve para criar resource
