@@ -74,6 +74,8 @@ useViewForm<DataForm = unknown, IDType = string | number, T extends Record<strin
 | `submitForm()` | `Promise<void>` | Cria ou atualiza. |
 | `reloadPage(wait1s?)` | `Promise<Resolves>` | Dispara *reload* geral. |
 | `setFieldErrors(field, error)` | - | Define erro para um campo específico. |
+| `getFieldError(field)` | `string \| undefined` | Obtém erro de um campo específico usando dot notation. |
+| `setFieldError(field, error)` | - | Define erro para um campo específico usando dot notation. |
 | `clearErrors()` | - | Limpa todos os erros. |
 | _e todos os métodos herdados do_ **`useView`** |
 
@@ -200,6 +202,30 @@ clearErrors();
 console.log(errors); // { email: 'Este email já está em uso', name: 'Nome é obrigatório' }
 ```
 
+#### Usando as novas funções com dot notation
+
+```tsx
+const { getFieldError, setFieldError, clearErrors } = useViewForm<UserForm>({
+  // ... outras props
+});
+
+// Definir erros usando dot notation
+setFieldError('user.profile.name', 'Nome do perfil é obrigatório');
+setFieldError('address.street', 'Rua é obrigatória');
+setFieldError('items.0.title', 'Título do primeiro item é obrigatório');
+
+// Obter erros específicos
+const profileNameError = getFieldError('user.profile.name'); // 'Nome do perfil é obrigatório'
+const streetError = getFieldError('address.street'); // 'Rua é obrigatória'
+const nonExistentError = getFieldError('nonexistent.field'); // undefined
+
+// Limpar erro específico
+setFieldError('user.profile.name', ''); // Remove o erro
+
+// Limpar todos os erros
+clearErrors();
+```
+
 #### Validação automática com `validateData`
 
 ```tsx
@@ -281,29 +307,84 @@ function UserForm() {
         <input 
           value={resource.name ?? ''} 
           onChange={e => setField('name', e.target.value)}
-          className={errors.name ? 'error' : ''}
+          placeholder="Nome"
         />
-        {errors.name && <span className="error-text">{errors.name}</span>}
+        {errors.name && <span style={{ color: 'red' }}>{errors.name}</span>}
       </div>
-      
+
       <div>
         <input 
           value={resource.email ?? ''} 
           onChange={e => setField('email', e.target.value)}
           onBlur={handleEmailBlur}
-          className={errors.email ? 'error' : ''}
+          placeholder="Email"
         />
-        {errors.email && <span className="error-text">{errors.email}</span>}
+        {errors.email && <span style={{ color: 'red' }}>{errors.email}</span>}
       </div>
-      
-      <button disabled={isSaving || Object.keys(errors).length > 0}>
-        Salvar
-      </button>
-      
-      <button type="button" onClick={clearErrors}>
-        Limpar Erros
+
+      <button disabled={isSaving}>
+        {isSaving ? 'Salvando...' : 'Salvar'}
       </button>
     </form>
+  );
+}
+```
+
+#### Usando com useFormField (Provider Pattern)
+
+O `useFormField` agora utiliza automaticamente as novas funções `getFieldError` e `setFieldError`:
+
+```tsx
+function FormFields() {
+  const { value: name, setValue: setName, error: nameError, setError: setNameError } = 
+    useFormField<UserForm, 'name'>('name', '');
+  
+  const { value: email, setValue: setEmail, error: emailError, setError: setEmailError } = 
+    useFormField<UserForm, 'email'>('email', '');
+  
+  // Campos aninhados também funcionam
+  const { value: street, setValue: setStreet, error: streetError, setError: setStreetError } = 
+    useFormField<UserForm, 'address.street'>('address.street', '');
+
+  // Validação customizada
+  const handleEmailValidation = async () => {
+    if (email && !email.includes('@')) {
+      setEmailError('Email deve conter @');
+    } else {
+      setEmailError(''); // Limpar erro
+    }
+  };
+
+  return (
+    <div>
+      <div>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nome"
+        />
+        {nameError && <span style={{ color: 'red' }}>{nameError}</span>}
+      </div>
+
+      <div>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={handleEmailValidation}
+          placeholder="Email"
+        />
+        {emailError && <span style={{ color: 'red' }}>{emailError}</span>}
+      </div>
+
+      <div>
+        <input
+          value={street}
+          onChange={(e) => setStreet(e.target.value)}
+          placeholder="Rua"
+        />
+        {streetError && <span style={{ color: 'red' }}>{streetError}</span>}
+      </div>
+    </div>
   );
 }
 ```

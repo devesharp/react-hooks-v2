@@ -215,6 +215,18 @@ export function useViewForm<
     });
   }
 
+  function getFieldError<K extends IPaths<DataForm>>(keyDot: K): string | undefined {
+    return errors[keyDot as string];
+  }
+
+  function setFieldError<K extends IPaths<DataForm>>(keyDot: K, error: string): void {
+    setErrors((prevErrors) => {
+      const newErrors = { ...prevErrors };
+      newErrors[keyDot as string] = error;
+      return newErrors;
+    });
+  }
+
   function clearErrors(): void {
     setErrors(() => ({}));
   }
@@ -409,6 +421,8 @@ export function useViewForm<
     errors,
     setErrors,
     setFieldErrors,
+    getFieldError,
+    setFieldError,
     clearErrors,
   };
 }

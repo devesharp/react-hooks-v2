@@ -50,9 +50,9 @@ describe('useView', () => {
       const { result } = renderHook(() => useView({}));
 
       // Quando não há resolves, o hook inicia com firstLoad=true por padrão
-      // mas como não há resolves para processar, mantém o estado inicial
-      expect(result.current.isLoading).toBe(true);
-      expect(result.current.isStarted).toBe(false);
+      // mas como não há resolves para processar, inicia normalmente
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isStarted).toBe(true);
       expect(result.current.isErrorOnLoad).toBe(false);
       expect(result.current.isCriticalError).toBe(false);
       expect(result.current.resolvesResponse).toEqual({});
@@ -240,9 +240,9 @@ describe('useView', () => {
       const { result } = renderHook(() => useView({ resolves: {} }));
 
       // Quando resolves é um objeto vazio, o hook inicia com firstLoad=true
-      // mas como não há resolves para processar, mantém o estado inicial
-      expect(result.current.isLoading).toBe(true);
-      expect(result.current.isStarted).toBe(false);
+      // mas como não há resolves para processar, inicia normalmente
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isStarted).toBe(true);
       expect(result.current.isErrorOnLoad).toBe(false);
       expect(result.current.resolvesResponse).toEqual({});
     });

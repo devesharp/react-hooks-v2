@@ -1311,6 +1311,110 @@ describe('useViewForm', () => {
           email: 'Email inválido'
         });
       });
+
+      it('deve obter erro de campo específico com getFieldError', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldError('name', 'Nome é obrigatório');
+          result.current.setFieldError('email', 'Email inválido');
+        });
+
+        expect(result.current.getFieldError('name')).toBe('Nome é obrigatório');
+        expect(result.current.getFieldError('email')).toBe('Email inválido');
+        expect(result.current.getFieldError('age' as never)).toBeUndefined();
+      });
+
+      it('deve definir erro de campo específico com setFieldError usando dot notation', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldError('name', 'Nome é obrigatório');
+          result.current.setFieldError('nested.field' as never, 'Campo aninhado inválido');
+        });
+
+        expect(result.current.errors).toEqual({
+          name: 'Nome é obrigatório',
+          'nested.field': 'Campo aninhado inválido'
+        });
+
+        expect(result.current.getFieldError('name')).toBe('Nome é obrigatório');
+        expect(result.current.getFieldError('nested.field' as never)).toBe('Campo aninhado inválido');
+      });
+
+      it('deve sobrescrever erro existente com setFieldError', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldError('name', 'Nome é obrigatório');
+        });
+
+        expect(result.current.getFieldError('name')).toBe('Nome é obrigatório');
+
+        act(() => {
+          result.current.setFieldError('name', 'Nome deve ter pelo menos 3 caracteres');
+        });
+
+        expect(result.current.getFieldError('name')).toBe('Nome deve ter pelo menos 3 caracteres');
+      });
+
+      it('deve retornar undefined para campo sem erro com getFieldError', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        expect(result.current.getFieldError('name')).toBeUndefined();
+        expect(result.current.getFieldError('email')).toBeUndefined();
+      });
+
+      it('deve funcionar com campos aninhados usando dot notation', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldError('user.profile.name' as never, 'Nome do perfil é obrigatório');
+          result.current.setFieldError('address.street' as never, 'Rua é obrigatória');
+          result.current.setFieldError('items.0.title' as never, 'Título do primeiro item é obrigatório');
+        });
+
+        expect(result.current.getFieldError('user.profile.name' as never)).toBe('Nome do perfil é obrigatório');
+        expect(result.current.getFieldError('address.street' as never)).toBe('Rua é obrigatória');
+        expect(result.current.getFieldError('items.0.title' as never)).toBe('Título do primeiro item é obrigatório');
+
+        expect(result.current.errors).toEqual({
+          'user.profile.name': 'Nome do perfil é obrigatório',
+          'address.street': 'Rua é obrigatória',
+          'items.0.title': 'Título do primeiro item é obrigatório'
+        });
+      });
+
+      it('deve limpar erros específicos com setFieldError definindo string vazia', () => {
+        const { result } = renderHook(() => 
+          useViewForm<TestFormData>({})
+        );
+
+        act(() => {
+          result.current.setFieldError('name', 'Nome é obrigatório');
+          result.current.setFieldError('email', 'Email inválido');
+        });
+
+        expect(result.current.getFieldError('name')).toBe('Nome é obrigatório');
+        expect(result.current.getFieldError('email')).toBe('Email inválido');
+
+        act(() => {
+          result.current.setFieldError('name', '');
+        });
+
+        expect(result.current.getFieldError('name')).toBe('');
+        expect(result.current.getFieldError('email')).toBe('Email inválido');
+      });
     });
 
     describe('Callback checkErrors com dados específicos', () => {

@@ -71,7 +71,7 @@ export function useFormField<
     }
   }
 
-  const { getField, setField, errors, setFieldErrors } = context;
+  const { getField, setField, getFieldError, setFieldError } = context;
 
   // Obter o valor atual do campo ou usar o valor padrão
   const value = getField(fieldName as never) ?? defaultValue;
@@ -81,12 +81,12 @@ export function useFormField<
     setField(fieldName as never, newValue as never);
   };
 
-  // Obter o erro do campo
-  const error = errors[fieldName as string];
+  // Obter o erro do campo usando a nova função
+  const error = getFieldError(fieldName as never);
 
-  // Função para definir erro do campo
+  // Função para definir erro do campo usando a nova função
   const setError = (errorMessage: string) => {
-    setFieldErrors(fieldName as never, errorMessage);
+    setFieldError(fieldName as never, errorMessage);
   };
 
   return {

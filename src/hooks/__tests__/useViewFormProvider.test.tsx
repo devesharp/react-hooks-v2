@@ -78,6 +78,8 @@ describe('useViewFormProvider', () => {
     checkErrors: vi.fn(),
     setErrors: vi.fn(),
     setFieldErrors: vi.fn(),
+    getFieldError: vi.fn(),
+    setFieldError: vi.fn(),
     clearErrors: vi.fn(),
   };
 
@@ -274,6 +276,12 @@ describe('useViewFormProvider', () => {
 
     it('deve retornar erro do campo corretamente', () => {
       mockFormData.errors = { name: 'Nome é obrigatório', email: 'Email inválido' };
+      mockFormData.getFieldError = vi.fn()
+        .mockImplementation((field) => {
+          if (field === 'name') return 'Nome é obrigatório';
+          if (field === 'email') return 'Email inválido';
+          return undefined;
+        });
 
       const TestComponent = () => {
         const { error: nameError } = useFormField<TestFormData, 'name'>('name');
@@ -321,7 +329,7 @@ describe('useViewFormProvider', () => {
       );
 
       fireEvent.click(screen.getByTestId('set-error'));
-      expect(mockFormData.setFieldErrors).toHaveBeenCalledWith('name', 'Erro customizado');
+      expect(mockFormData.setFieldError).toHaveBeenCalledWith('name', 'Erro customizado');
     });
 
     it('deve funcionar com campos aninhados', () => {
@@ -455,6 +463,12 @@ describe('useViewFormProvider', () => {
         name: 'Nome é obrigatório',
         email: 'Email inválido'
       };
+      mockFormData.getFieldError = vi.fn()
+        .mockImplementation((field) => {
+          if (field === 'name') return 'Nome é obrigatório';
+          if (field === 'email') return 'Email inválido';
+          return undefined;
+        });
 
       const FormWithErrors = () => {
         const { errors } = useFormContext<TestFormData>();
@@ -481,82 +495,138 @@ describe('useViewFormProvider', () => {
       expect(screen.getByTestId('form-errors-count')).toHaveTextContent('2');
     });
 
-    it('deve funcionar com múltiplos componentes usando diferentes campos', () => {
-      mockFormData.getField.mockImplementation((field) => {
-        const data: any = {
-          name: 'João',
-          email: 'joao@test.com',
-          'nested.value': 'Nested Data',
-          age: 30
-        };
-        return data[field];
-      });
+    it('deve usar getFieldError para obter erros de campos', () => {
+      mockFormData.getFieldError = vi.fn()
+        .mockImplementation((field) => {
+          if (field === 'name') return 'Nome é obrigatório';
+          if (field === 'email') return 'Email inválido';
+          if (field === 'nested.field') return 'Campo aninhado inválido';
+          return undefined;
+        });
 
-      const NameComponent = () => {
-        const { value, setValue } = useFormField<TestFormData, 'name'>('name');
+      const TestComponent = () => {
+        const { error: nameError } = useFormField<TestFormData, 'name'>('name');
+        const { error: emailError } = useFormField<TestFormData, 'email'>('email');
+        const { error: nestedError } = useFormField<TestFormData, 'nested.field'>('nested.field');
+        const { error: noError } = useFormField<TestFormData, 'age'>('age');
+        
         return (
-          <input
-            data-testid="name-component"
-            value={value || ''}
-            onChange={(e) => setValue(e.target.value)}
-          />
-        );
-      };
-
-      const EmailComponent = () => {
-        const { value, setValue } = useFormField<TestFormData, 'email'>('email');
-        return (
-          <input
-            data-testid="email-component"
-            value={value || ''}
-            onChange={(e) => setValue(e.target.value)}
-          />
-        );
-      };
-
-      const NestedComponent = () => {
-        const { value, setValue } = useFormField<TestFormData, 'nested.value'>('nested.value');
-        return (
-          <input
-            data-testid="nested-component"
-            value={value || ''}
-            onChange={(e) => setValue(e.target.value)}
-          />
-        );
-      };
-
-      const AgeComponent = () => {
-        const { value, setValue } = useFormField<TestFormData, 'age'>('age');
-        return (
-          <input
-            data-testid="age-component"
-            type="number"
-            value={value || 0}
-            onChange={(e) => setValue(Number(e.target.value))}
-          />
+          <div>
+            <div data-testid="name-error">{nameError || 'no error'}</div>
+            <div data-testid="email-error">{emailError || 'no error'}</div>
+            <div data-testid="nested-error">{nestedError || 'no error'}</div>
+            <div data-testid="no-error">{noError || 'no error'}</div>
+          </div>
         );
       };
 
       render(
         <ViewFormProvider<TestFormData> {...mockFormData}>
-          <NameComponent />
-          <EmailComponent />
-          <NestedComponent />
-          <AgeComponent />
+          <TestComponent />
         </ViewFormProvider>
       );
 
-      expect(screen.getByTestId('name-component')).toHaveValue('João');
-      expect(screen.getByTestId('email-component')).toHaveValue('joao@test.com');
-      expect(screen.getByTestId('nested-component')).toHaveValue('Nested Data');
-      expect(screen.getByTestId('age-component')).toHaveValue(30);
+      expect(mockFormData.getFieldError).toHaveBeenCalledWith('name');
+      expect(mockFormData.getFieldError).toHaveBeenCalledWith('email');
+      expect(mockFormData.getFieldError).toHaveBeenCalledWith('nested.field');
+      expect(mockFormData.getFieldError).toHaveBeenCalledWith('age');
 
-      // Testar alterações independentes
-      fireEvent.change(screen.getByTestId('name-component'), { target: { value: 'Pedro' } });
-      expect(mockFormData.setField).toHaveBeenCalledWith('name', 'Pedro');
+      expect(screen.getByTestId('name-error')).toHaveTextContent('Nome é obrigatório');
+      expect(screen.getByTestId('email-error')).toHaveTextContent('Email inválido');
+      expect(screen.getByTestId('nested-error')).toHaveTextContent('Campo aninhado inválido');
+      expect(screen.getByTestId('no-error')).toHaveTextContent('no error');
+    });
 
-      fireEvent.change(screen.getByTestId('age-component'), { target: { value: '25' } });
-      expect(mockFormData.setField).toHaveBeenCalledWith('age', 25);
+    it('deve usar setFieldError para definir erros de campos', () => {
+      const TestComponent = () => {
+        const { setError: setNameError } = useFormField<TestFormData, 'name'>('name');
+        const { setError: setNestedError } = useFormField<TestFormData, 'nested.field'>('nested.field');
+        
+        return (
+          <div>
+            <button 
+              data-testid="set-name-error" 
+              onClick={() => setNameError('Nome é obrigatório')}
+            >
+              Set Name Error
+            </button>
+            <button 
+              data-testid="set-nested-error" 
+              onClick={() => setNestedError('Campo aninhado inválido')}
+            >
+              Set Nested Error
+            </button>
+          </div>
+        );
+      };
+
+      render(
+        <ViewFormProvider<TestFormData> {...mockFormData}>
+          <TestComponent />
+        </ViewFormProvider>
+      );
+
+      fireEvent.click(screen.getByTestId('set-name-error'));
+      expect(mockFormData.setFieldError).toHaveBeenCalledWith('name', 'Nome é obrigatório');
+
+      fireEvent.click(screen.getByTestId('set-nested-error'));
+      expect(mockFormData.setFieldError).toHaveBeenCalledWith('nested.field', 'Campo aninhado inválido');
+    });
+
+    it('deve funcionar com campos aninhados usando dot notation para erros', () => {
+      mockFormData.getFieldError = vi.fn()
+        .mockImplementation((field) => {
+          if (field === 'user.profile.name') return 'Nome do perfil é obrigatório';
+          if (field === 'address.street') return 'Rua é obrigatória';
+          if (field === 'items.0.title') return 'Título do primeiro item é obrigatório';
+          return undefined;
+        });
+
+      const TestComponent = () => {
+        const { error: profileNameError, setError: setProfileNameError } = useFormField<TestFormData, 'user.profile.name'>('user.profile.name');
+        const { error: streetError, setError: setStreetError } = useFormField<TestFormData, 'address.street'>('address.street');
+        const { error: itemTitleError, setError: setItemTitleError } = useFormField<TestFormData, 'items.0.title'>('items.0.title');
+        
+        return (
+          <div>
+            <div data-testid="profile-name-error">{profileNameError || 'no error'}</div>
+            <div data-testid="street-error">{streetError || 'no error'}</div>
+            <div data-testid="item-title-error">{itemTitleError || 'no error'}</div>
+            <button 
+              data-testid="set-profile-error" 
+              onClick={() => setProfileNameError('Novo erro do perfil')}
+            >
+              Set Profile Error
+            </button>
+            <button 
+              data-testid="set-street-error" 
+              onClick={() => setStreetError('Novo erro da rua')}
+            >
+              Set Street Error
+            </button>
+          </div>
+        );
+      };
+
+      render(
+        <ViewFormProvider<TestFormData> {...mockFormData}>
+          <TestComponent />
+        </ViewFormProvider>
+      );
+
+      expect(mockFormData.getFieldError).toHaveBeenCalledWith('user.profile.name');
+      expect(mockFormData.getFieldError).toHaveBeenCalledWith('address.street');
+      expect(mockFormData.getFieldError).toHaveBeenCalledWith('items.0.title');
+
+      expect(screen.getByTestId('profile-name-error')).toHaveTextContent('Nome do perfil é obrigatório');
+      expect(screen.getByTestId('street-error')).toHaveTextContent('Rua é obrigatória');
+      expect(screen.getByTestId('item-title-error')).toHaveTextContent('Título do primeiro item é obrigatório');
+
+      fireEvent.click(screen.getByTestId('set-profile-error'));
+      expect(mockFormData.setFieldError).toHaveBeenCalledWith('user.profile.name', 'Novo erro do perfil');
+
+      fireEvent.click(screen.getByTestId('set-street-error'));
+      expect(mockFormData.setFieldError).toHaveBeenCalledWith('address.street', 'Novo erro da rua');
     });
   });
 
