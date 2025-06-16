@@ -134,20 +134,20 @@ describe('useViewForm', () => {
   });
 
   describe('Resolves de carregamento', () => {
-    it('deve usar resolveGetById quando há ID', async () => {
+    it('deve usar resolveGet quando há ID', async () => {
       const userData = { id: 123, name: 'João', email: 'joao@test.com' };
-      const resolveGetById = vi.fn().mockResolvedValue(userData);
+      const resolveGet = vi.fn().mockResolvedValue(userData);
       
       const { result } = renderHook(() => 
         useViewForm<TestFormData, number>({
           id: 123,
-          resolveGetById,
+          resolveGet,
           firstLoad: true,
         })
       );
 
       await waitFor(() => {
-        expect(resolveGetById).toHaveBeenCalledWith(123);
+        expect(resolveGet).toHaveBeenCalledWith(123);
       });
     });
 
@@ -167,28 +167,28 @@ describe('useViewForm', () => {
       });
     });
 
-    it('deve priorizar resolveGetById quando há ID e ambos os resolves', async () => {
+    it('deve priorizar resolveGet quando há ID e ambos os resolves', async () => {
       const userDataById = { id: 123, name: 'João por ID', email: 'joao@test.com' };
       const userDataGeneral = { name: 'João geral', email: 'joao@test.com' };
-      const resolveGetById = vi.fn().mockResolvedValue(userDataById);
+      const resolveGet = vi.fn().mockResolvedValue(userDataById);
       const resolveGet = vi.fn().mockResolvedValue(userDataGeneral);
       
       const { result } = renderHook(() => 
         useViewForm<TestFormData, number>({
           id: 123,
-          resolveGetById,
+          resolveGet,
           resolveGet,
           firstLoad: true,
         })
       );
 
       await waitFor(() => {
-        expect(resolveGetById).toHaveBeenCalledWith(123);
+        expect(resolveGet).toHaveBeenCalledWith(123);
         expect(resolveGet).not.toHaveBeenCalled();
       });
     });
 
-    it('deve usar resolveGet quando há ID mas não há resolveGetById', async () => {
+    it('deve usar resolveGet quando há ID mas não há resolveGet', async () => {
       const userData = { name: 'João', email: 'joao@test.com' };
       const resolveGet = vi.fn().mockResolvedValue(userData);
       

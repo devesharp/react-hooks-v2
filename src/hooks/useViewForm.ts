@@ -21,15 +21,13 @@ export function useViewForm<
   DataForm = unknown,
   IDType = string | number,
   TResolves extends Record<string, IResolve> = Record<string, IResolve>,
-  TResolveGet extends IResolve = IResolve,
-  TResolveGetById extends IResolve = IResolve
+  TResolveGet extends IResolve = IResolve
 >({
   id,
   onStarted,
   onErrorStarted,
   updateResourceOnSave = false,
   resolveGet,
-  resolveGetById,
   initialData = {},
   resolveAction,
   resolveCreate,
@@ -42,15 +40,15 @@ export function useViewForm<
   handleInsertForm = (v) => v as Partial<DataForm>,
   resolves = {} as TResolves,
   firstLoad = true,
-}: IUseViewFormProps<DataForm, IDType, TResolves, TResolveGet, TResolveGetById>) {
+}: IUseViewFormProps<DataForm, IDType, TResolves, TResolveGet>) {
   // Montar resolves do formulário
   const resolvesForm: TResolves & {
     get?: IResolve;
   } = { ...resolves };
 
   // Se houver ID e resolveGetById, usar resolveGetById
-  if (id && resolveGetById) {
-    resolvesForm.get = () => resolveGetById(id);
+  if (id && resolveGet) {
+    resolvesForm.get = () => resolveGet(id);
   }
   // Se houver resolveGet (sem necessidade de ID), usar resolveGet
   else if (resolveGet) {
@@ -77,7 +75,7 @@ export function useViewForm<
     onStarted: (s) => {
       onStarted?.(s);
       onStartedForm(
-        s.get as IExtractResolverType<TResolveGet | TResolveGetById> | undefined
+        s.get as IExtractResolverType<TResolveGet> | undefined
       );
     },
     onErrorStarted: (e) => {
@@ -143,7 +141,7 @@ export function useViewForm<
     }, originalResource) as IPathValue<DataForm, K>;
   }
 
-  function onStartedForm(get?: IExtractResolverType<TResolveGet | TResolveGetById>) {
+  function onStartedForm(get?: IExtractResolverType<TResolveGet>) {
     if (get) {
       setResource(() => handleInsertForm({ ...get }));
       setOriginalResource(() => ({ ...(get ?? {}) } as DataForm));
@@ -328,11 +326,11 @@ export function useViewForm<
             if (resultAction) {
               setResource(() =>
                 handleInsertForm(
-                  resultAction as IExtractResolverType<TResolveGet | TResolveGetById>
+                  resultAction as IExtractResolverType<TResolveGet>
                 )
               );
               setOriginalResource(
-                () => resultAction as IExtractResolverType<TResolveGet | TResolveGetById>
+                () => resultAction as IExtractResolverType<TResolveGet>
               );
             }
           }

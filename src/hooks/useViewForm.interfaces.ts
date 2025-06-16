@@ -54,6 +54,7 @@ export type IPathValue<
   ? T[P]
   : never;
 
+
 export interface IUseViewFormProps<
   DataForm = unknown,
   IDType = string | number,
@@ -61,6 +62,7 @@ export interface IUseViewFormProps<
   TResolveGet extends IResolve = IResolve,
   TResolveGetById extends IResolve = IResolve
 > extends IUseViewProps<TResolves> {
+  
   /**
    * Id do resource
    *
@@ -84,18 +86,15 @@ export interface IUseViewFormProps<
    * formRef.current.setData
    */
   handleInsertForm?: (
-    v: IExtractResolverType<TResolveGetById | TResolveGet>
+    v: TResolveGetById extends undefined 
+      ? IExtractResolverType<TResolveGet>
+      : IExtractResolverType<TResolveGetById>
   ) => Partial<DataForm> | Promise<Partial<DataForm>>;
 
   /**
    * Resolve para resgatar resource (sem necessidade de ID)
    */
   resolveGet?: TResolveGet;
-
-  /**
-   * Resolve para resgatar resource por ID
-   */
-  resolveGetById?: TResolveGetById;
 
   /**
    * Resolve para criar resource
@@ -169,146 +168,3 @@ export interface IUseViewFormProps<
    */
   onFailed?: (resp: Error, creating: boolean) => void;
 }
-
-// export interface IViewFormResponse<T = any> extends IViewResponse {
-//   /**
-//    * resource adquirado em resolveGet
-//    */
-//   resource: T;
-//   setResource: (f: ((draft: Draft<T> | T) => void) | T) => void;
-
-//   isSaving: boolean;
-//   isEditing: boolean;
-//   isNotFound: boolean;
-//   isNotAuthorization: boolean;
-
-//   //
-//   initialData?: any;
-
-//   /**
-//    * resource adquirado em resolveGet que nunca será alterado
-//    */
-//   originalResource: T;
-
-//   /**
-//    * Unform ref
-//    */
-//   formRef: MutableRefObject<FormHandles>;
-
-//   formManager: {
-//     getFieldValue(fieldName: string): any;
-//     setFieldValue(fieldName: string, value: any): void | boolean;
-//     getFieldError(fieldName: string): string | undefined;
-//     setFieldError(fieldName: string, error: string): void;
-//     clearField(fieldName: string): void;
-//     getData(): Record<string, any>;
-//     setData(data: Record<string, any>): void;
-//     getErrors(): UnformErrors;
-//     setErrors(errors: Record<string, string>): void;
-//     reset(data?: Record<string, any>): void;
-//   };
-
-//   /**
-//    * Status de salvando form
-//    */
-//   saving: boolean;
-
-//   /**
-//    * Se não encontrou recurso
-//    */
-//   notFound: boolean;
-
-//   /**
-//    * Se não tiver permissão para ver recurso
-//    */
-//   notAuthorization: boolean;
-
-//   /**
-//    * Registrar funções que são chamadas ao carregar recurso
-//    */
-//   registerOnLoadResource: (resource: any) => void;
-//   useOnLoadResource: (
-//     fn: (r: { [key: string]: any }) => void,
-//     deps: any[]
-//   ) => any;
-
-//   /**
-//    * Registrar funções que são chamadas ao carregar recurso
-//    */
-//   registerOnAfterLoadResource: (resource: any) => void;
-//   useOnAfterLoadResource: (
-//     fn: (r: { [key: string]: any }) => void,
-//     deps: any[]
-//   ) => any;
-
-//   /**
-//    * Mostra erros do formulário sem enviar
-//    *
-//    * util para mostrar erros em telas que estavam inativas
-//    */
-//   checkErrors: () => void;
-
-//   /**
-//    * callback para unform
-//    *
-//    * <Form onSubmit={onSubmitForm} />
-//    */
-//   onSubmitForm(data: any): Promise<void>;
-
-//   /**
-//    * Forçar data manual no form
-//    */
-//   onSubmitManual(
-//     data: any,
-//     validateData: { validateData?: boolean; handleFormData?: boolean }
-//   ): Promise<void>;
-
-//   /**
-//    * Força submit
-//    */
-//   forceSubmit(): void;
-
-//   /**
-//    * Resgatar campo de extraFormDara
-//    */
-//   getFieldValueExtraForm(fieldName: string): any;
-
-//   /**
-//    * Definir campo de extraFormDara
-//    */
-//   setFieldValueExtraForm(fieldName: string, value: any): void;
-
-//   /**
-//    * Limpar campo de extraFormDara
-//    */
-//   clearFieldExtraForm(fieldName: string): void;
-
-//   /**
-//    * Resgatar body do form
-//    */
-//   getData(): any;
-
-//   /**
-//    * Inserir dados no formRef ou extraFormData
-//    */
-//   setData(data: any): void;
-
-//   /**
-//    * Inserir valor do recurso
-//    * @param key
-//    * @param value
-//    */
-//   setLocalField(key: string, value: any): void;
-
-//   /**
-//    * Resgatar valor do recurso
-//    * @param key
-//    */
-//   getLocalField(key: string): any;
-
-//   /**
-//    * Resgatar valor original do recurso
-//    * @param key
-//    */
-//   getOriginalField(key: string): any;
-// }
