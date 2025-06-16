@@ -1,7 +1,6 @@
 import { z, type ZodSchema, type ZodError } from 'zod';
+import { NestedErrors } from './useViewForm.interfaces';
 
-// Tipo para erros aninhados
-type NestedErrors = Record<string, string | Record<string, string>>;
 
 /**
  * Wrapper para usar schemas Zod com validateData do useViewForm
@@ -489,4 +488,4 @@ export function conditionalZodSchema<T, U>(
       });
     }
   });
-} 
+}

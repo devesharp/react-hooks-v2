@@ -6,6 +6,9 @@ import {
 } from "./useView.interfaces";
 // import * as Yup from 'yup';
 
+export interface NestedErrors {
+  [key: string]: string | NestedErrors;
+}
 export interface IStatusInfoViewForm extends IStatusInfo {
   isSaving: boolean;
   isNotFound: boolean;
@@ -146,7 +149,7 @@ export interface IUseViewFormProps<
       | SecondParam<TResolves["update"]>
       | FirstParam<TResolves["action"]>
       | Partial<DataForm>
-  ) => Record<string, string> | Promise<Record<string, string>>;
+  ) => NestedErrors | Promise<NestedErrors>;
 
   /**
    * callback de retorno de sucesso ao salvar formulário

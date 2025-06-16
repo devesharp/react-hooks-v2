@@ -9,6 +9,7 @@ import {
   IUseViewFormProps,
   IPaths,
   IPathValue,
+  NestedErrors,
 } from "./useViewForm.interfaces";
 import {
   IExtractResolverType,
@@ -189,7 +190,7 @@ export function useViewForm<
 
   async function checkErrors(
     data?: Partial<DataForm>
-  ): Promise<Record<string, string> | Promise<Record<string, string>>> {
+  ): Promise<NestedErrors | Promise<NestedErrors>> {
     let formData = data ?? getData(true);
 
     if (formData instanceof Promise) {
@@ -251,7 +252,7 @@ export function useViewForm<
 
       if (Object.keys(valid).length > 0) {
         setErrors(() => valid);
-        onErrorData?.(Object.values(valid));
+        onErrorData?.(Object.values(valid) as string[]);
         return;
       }
     }
