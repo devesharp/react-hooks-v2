@@ -171,12 +171,10 @@ describe('useViewForm', () => {
       const userDataById = { id: 123, name: 'João por ID', email: 'joao@test.com' };
       const userDataGeneral = { name: 'João geral', email: 'joao@test.com' };
       const resolveGet = vi.fn().mockResolvedValue(userDataById);
-      const resolveGet = vi.fn().mockResolvedValue(userDataGeneral);
       
       const { result } = renderHook(() => 
         useViewForm<TestFormData, number>({
           id: 123,
-          resolveGet,
           resolveGet,
           firstLoad: true,
         })
@@ -184,7 +182,6 @@ describe('useViewForm', () => {
 
       await waitFor(() => {
         expect(resolveGet).toHaveBeenCalledWith(123);
-        expect(resolveGet).not.toHaveBeenCalled();
       });
     });
 
