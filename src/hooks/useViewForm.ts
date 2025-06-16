@@ -77,7 +77,7 @@ export function useViewForm<
     onStarted: (s) => {
       onStarted?.(s);
       onStartedForm(
-        s.get as IExtractResolverType<TResolves["get"]> | undefined
+        s.get as IExtractResolverType<TResolveGet | TResolveGetById> | undefined
       );
     },
     onErrorStarted: (e) => {
@@ -143,7 +143,7 @@ export function useViewForm<
     }, originalResource) as IPathValue<DataForm, K>;
   }
 
-  function onStartedForm(get?: IExtractResolverType<TResolves["get"]>) {
+  function onStartedForm(get?: IExtractResolverType<TResolveGet | TResolveGetById>) {
     if (get) {
       setResource(() => handleInsertForm({ ...get }));
       setOriginalResource(() => ({ ...(get ?? {}) } as DataForm));
@@ -328,11 +328,11 @@ export function useViewForm<
             if (resultAction) {
               setResource(() =>
                 handleInsertForm(
-                  resultAction as IExtractResolverType<TResolves["get"]>
+                  resultAction as IExtractResolverType<TResolveGet | TResolveGetById>
                 )
               );
               setOriginalResource(
-                () => resultAction as IExtractResolverType<TResolves["get"]>
+                () => resultAction as IExtractResolverType<TResolveGet | TResolveGetById>
               );
             }
           }
