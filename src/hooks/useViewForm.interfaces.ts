@@ -84,7 +84,7 @@ export interface IUseViewFormProps<
    * formRef.current.setData
    */
   handleInsertForm?: (
-    v: IExtractResolverType<TResolveGet>
+    v: IExtractResolverType<TResolveGetById>
   ) => Partial<DataForm> | Promise<Partial<DataForm>>;
 
   /**
@@ -95,7 +95,7 @@ export interface IUseViewFormProps<
   /**
    * Resolve para resgatar resource por ID
    */
-  resolveGetById?: IResolve;
+  resolveGetById?: TResolveGetById;
 
   /**
    * Resolve para criar resource

@@ -77,7 +77,7 @@ export function useViewForm<
     onStarted: (s) => {
       onStarted?.(s);
       onStartedForm(
-        s.get as IExtractResolverType<TResolveGet> | undefined
+        s.get as IExtractResolverType<TResolves["get"]> | undefined
       );
     },
     onErrorStarted: (e) => {
@@ -143,7 +143,7 @@ export function useViewForm<
     }, originalResource) as IPathValue<DataForm, K>;
   }
 
-  function onStartedForm(get?: IExtractResolverType<TResolveGet>) {
+  function onStartedForm(get?: IExtractResolverType<TResolves["get"]>) {
     if (get) {
       setResource(() => handleInsertForm({ ...get }));
       setOriginalResource(() => ({ ...(get ?? {}) } as DataForm));
@@ -328,11 +328,11 @@ export function useViewForm<
             if (resultAction) {
               setResource(() =>
                 handleInsertForm(
-                  resultAction as IExtractResolverType<TResolveGet>
+                  resultAction as IExtractResolverType<TResolves["get"]>
                 )
               );
               setOriginalResource(
-                () => resultAction as IExtractResolverType<TResolveGet>
+                () => resultAction as IExtractResolverType<TResolves["get"]>
               );
             }
           }
@@ -428,4 +428,18 @@ export function useViewForm<
     setFieldError,
     clearErrors,
   };
+}
+
+function Component2() {
+  const sd = useViewForm({
+    resolveGetById: () => {
+      return {
+        name: "Nome é obrigatório",
+      };
+    },
+    handleInsertForm: (v) => {
+      v.name = "sdsd";
+      return v;
+    },
+  });
 }
