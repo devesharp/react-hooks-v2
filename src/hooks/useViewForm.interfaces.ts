@@ -59,7 +59,7 @@ export interface IUseViewFormProps<
   DataForm = unknown,
   IDType = string | number,
   TResolves extends Record<string, IResolve> = Record<string, IResolve>,
-  TResolveGet extends IResolve<unknown, [IDType|undefined]> = IResolve<unknown, [IDType|undefined]>
+  TResolveGet extends IResolve = IResolve
 > extends IUseViewProps<TResolves> {
   
   /**
