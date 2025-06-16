@@ -429,17 +429,3 @@ export function useViewForm<
     clearErrors,
   };
 }
-
-function Component2() {
-  const sd = useViewForm({
-    resolveGetById: () => {
-      return {
-        name: "Nome é obrigatório",
-      };
-    },
-    handleInsertForm: (v) => {
-      v.name = "sdsd";
-      return v;
-    },
-  });
-}

@@ -4,7 +4,7 @@ type ResolverPromise<T = unknown, T2 extends unknown[] = unknown[]> = (...args: 
 export type IResolve<T = unknown, T2 extends unknown[] = unknown[]> = ResolverFunction<T, T2> | ResolverPromise<T, T2>;
 
 // Tipo para extrair o tipo de retorno de um resolver
-export type IExtractResolverType<T> = T extends () => infer R
+export type IExtractResolverType<T> = T extends (...args: unknown[]) => infer R
   ? R extends Promise<infer U>
     ? U
     : R
