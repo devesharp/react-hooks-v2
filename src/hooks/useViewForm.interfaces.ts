@@ -57,7 +57,9 @@ export type IPathValue<
 export interface IUseViewFormProps<
   DataForm = unknown,
   IDType = string | number,
-  TResolves extends Record<string, IResolve> = Record<string, IResolve>
+  TResolves extends Record<string, IResolve> = Record<string, IResolve>,
+  TResolveGet extends IResolve = IResolve,
+  TResolveGetById extends IResolve = IResolve
 > extends IUseViewProps<TResolves> {
   /**
    * Id do resource
@@ -82,13 +84,13 @@ export interface IUseViewFormProps<
    * formRef.current.setData
    */
   handleInsertForm?: (
-    v?: IExtractResolverType<TResolves["get"]>
+    v: IExtractResolverType<TResolveGet>
   ) => Partial<DataForm> | Promise<Partial<DataForm>>;
 
   /**
    * Resolve para resgatar resource (sem necessidade de ID)
    */
-  resolveGet?: IResolve;
+  resolveGet?: TResolveGet;
 
   /**
    * Resolve para resgatar resource por ID
