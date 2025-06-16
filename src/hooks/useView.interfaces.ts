@@ -1,5 +1,5 @@
 // Tipo para diferentes tipos de resolvers
-type ResolverFunction<T = unknown, T2 extends unknown[] = unknown[]> = (...args: T2) => T | Promise<T>;
+type ResolverFunction<T = unknown, T2 extends unknown[] = unknown[]> = (...args: T2) => T;
 type ResolverPromise<T = unknown, T2 extends unknown[] = unknown[]> = (...args: T2) => Promise<T>;
 export type IResolve<T = unknown, T2 extends unknown[] = unknown[]> = ResolverFunction<T, T2> | ResolverPromise<T, T2>;
 

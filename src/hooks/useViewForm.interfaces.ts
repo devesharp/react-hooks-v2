@@ -59,8 +59,7 @@ export interface IUseViewFormProps<
   DataForm = unknown,
   IDType = string | number,
   TResolves extends Record<string, IResolve> = Record<string, IResolve>,
-  TResolveGet extends IResolve = IResolve,
-  TResolveGetById extends IResolve = IResolve
+  TResolveGet extends IResolve<unknown, [IDType|undefined]> = IResolve<unknown, [IDType|undefined]>
 > extends IUseViewProps<TResolves> {
   
   /**
@@ -86,9 +85,7 @@ export interface IUseViewFormProps<
    * formRef.current.setData
    */
   handleInsertForm?: (
-    v: TResolveGetById extends undefined 
-      ? IExtractResolverType<TResolveGet>
-      : IExtractResolverType<TResolveGetById>
+    v: IExtractResolverType<TResolveGet>
   ) => Partial<DataForm> | Promise<Partial<DataForm>>;
 
   /**
