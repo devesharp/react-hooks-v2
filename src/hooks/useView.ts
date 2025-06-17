@@ -45,7 +45,7 @@ export function useView<T extends Record<string, IResolve>>({
     isCriticalError: false,
   });
 
-  const runResolver = useCallback(async (key: keyof T, updateResolvesResponse = false) => {
+  const runResolver = useCallback(async (key: keyof T, updateResolvesResponse = true) => {
     try {
       const resolver = resolves.current?.[key];
 
@@ -110,7 +110,7 @@ export function useView<T extends Record<string, IResolve>>({
         const keys = Object.keys(resolves.current) as (keyof T)[];
         const promises = keys.map(async (key) => {
           try {
-            const result = await runResolver(key);
+            const result = await runResolver(key, false);
             return { key, result, success: true };
           } catch (error) {
             return { key, error, success: false };
