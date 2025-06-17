@@ -45,7 +45,7 @@ export function useView<T extends Record<string, IResolve>>({
     isCriticalError: false,
   });
 
-  const runResolver = useCallback(async (key: keyof T) => {
+  const runResolver = useCallback(async (key: keyof T, updateResolvesResponse = false) => {
     try {
       const resolver = resolves.current?.[key];
 
@@ -70,10 +70,17 @@ export function useView<T extends Record<string, IResolve>>({
         }
       }
 
+      if (updateResolvesResponse) {
+        setResolvesResponse((draft) => ({
+          ...(draft as Partial<IResolvedValues<T>>),
+          [key]: result,
+        }));
+      }
+
       return result;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-
+      
       throw err;
     }
   }, []);
