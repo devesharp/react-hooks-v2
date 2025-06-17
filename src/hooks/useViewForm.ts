@@ -69,6 +69,7 @@ export function useViewForm<
     setStatusInfo,
     reloadPage: reloadPageView,
     resolvesResponse,
+    runResolver,
   } = useView<typeof resolvesForm>({
     resolves: resolvesForm,
     firstLoad,
@@ -425,5 +426,6 @@ export function useViewForm<
     getFieldError,
     setFieldError,
     clearErrors,
+    runResolver,
   };
 }
