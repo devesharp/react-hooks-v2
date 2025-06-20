@@ -134,7 +134,7 @@ export interface IUseViewFormProps<
   /**
    * callback de retorno quando houver erro na validação
    */
-  onErrorData?: (errors: string[]) => void;
+  onErrorData?: (errors: Record<string, string>) => void;
 
   /**
    * callback ao validar formulário manualmente

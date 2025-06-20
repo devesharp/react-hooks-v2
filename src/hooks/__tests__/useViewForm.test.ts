@@ -568,7 +568,7 @@ describe('useViewForm', () => {
         await result.current.submitForm();
       });
 
-      expect(onErrorData).toHaveBeenCalledWith(['Nome é obrigatório']);
+      expect(onErrorData).toHaveBeenCalledWith({ name: 'Nome é obrigatório' });
       expect(resolveCreate).not.toHaveBeenCalled();
     });
 
@@ -592,7 +592,7 @@ describe('useViewForm', () => {
         await result.current.submitForm();
       });
 
-      expect(onErrorData).toHaveBeenCalledWith(['Email inválido']);
+      expect(onErrorData).toHaveBeenCalledWith({ email: 'Email inválido' });
       expect(resolveCreate).not.toHaveBeenCalled();
     });
   });
@@ -1264,7 +1264,7 @@ describe('useViewForm', () => {
 
         // Erros antigos devem ser limpos e novos erros de validação devem aparecer
         expect(result.current.errors).toEqual(validationErrors);
-        expect(onErrorData).toHaveBeenCalledWith(['Nome é obrigatório', 'Email inválido']);
+        expect(onErrorData).toHaveBeenCalledWith({ name: 'Nome é obrigatório', email: 'Email inválido' });
       });
 
       it('deve definir erros através de setErrors diretamente', () => {

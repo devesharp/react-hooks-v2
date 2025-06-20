@@ -253,7 +253,7 @@ export function useViewForm<
 
       if (Object.keys(valid).length > 0) {
         setErrors(() => valid);
-        onErrorData?.(Object.values(valid) as string[]);
+        onErrorData?.(valid as Record<string, string>);
         return false;
       }
     }
