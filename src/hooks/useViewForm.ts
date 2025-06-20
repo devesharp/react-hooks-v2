@@ -89,7 +89,7 @@ export function useViewForm<
    * Dado original só é alterado no load, reload do hook
    */
   const [resource, setResource] = useImmer<Partial<DataForm>>(initialData);
-  const [originalResource, setOriginalResource] = useImmer<Partial<DataForm>>(
+  const [originalResource, setOriginalResource] = useImmer<Partial<IExtractResolverType<TResolveGet>>>(
     {}
   );
 
