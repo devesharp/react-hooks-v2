@@ -233,7 +233,7 @@ export function useViewForm<
     setErrors(() => ({}));
   }
 
-  async function submitForm(): Promise<void> {
+  async function submitForm(): Promise<boolean> {
     // Limpar erros antes de iniciar o processo de submit
     clearErrors();
 
@@ -254,7 +254,7 @@ export function useViewForm<
       if (Object.keys(valid).length > 0) {
         setErrors(() => valid);
         onErrorData?.(Object.values(valid) as string[]);
-        return;
+        return false;
       }
     }
 
@@ -283,11 +283,11 @@ export function useViewForm<
               true
             );
 
-          return;
+          return true;
         } catch (error) {
           setStatusInfoForm({ isSaving: false });
           onFailed?.(error as Error, true);
-          return;
+          return false;
         }
       } else {
         setStatusInfoForm({
@@ -302,6 +302,8 @@ export function useViewForm<
               | IExtractResolverType<TResolves["action"]>,
             true
           );
+
+        return true;
       }
     } else {
       if (resolveUpdate) {
@@ -336,11 +338,11 @@ export function useViewForm<
             }
           }
 
-          return;
+          return true;
         } catch (error) {
           setStatusInfoForm({ isSaving: false });
           onFailed?.(error as Error, true);
-          return;
+          return false;
         }
       } else {
         setStatusInfoForm({
@@ -355,6 +357,8 @@ export function useViewForm<
               | IExtractResolverType<TResolves["action"]>,
             false
           );
+
+        return true;
       }
     }
   }
