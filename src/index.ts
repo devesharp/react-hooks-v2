@@ -4,6 +4,7 @@ export { useViewList } from './hooks/useViewList'
 export { useViewForm } from './hooks/useViewForm'
 export { useFetch } from './hooks/useFetch'
 export { useListener } from './hooks/useListener'
+export { convertObjetToQuery, convertQueryToObject } from './hooks/useViewList.utils'
 
 // Provider para useViewForm
 export { ViewFormProvider, useFormContext, useFormField } from './hooks/useViewFormProvider'

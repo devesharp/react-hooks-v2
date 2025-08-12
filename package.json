@@ -24,6 +24,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest -w=false",
+    "test:watch": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "predeploy": "npm run lint && npm run test:run && npm run build",
@@ -70,6 +71,7 @@
     "immer": "^10.1.1",
     "is-promise": "^4.0.0",
     "qs": "^6.14.0",
+    "query-types": "^0.1.4",
     "tsup": "^8.5.0",
     "use-immer": "^0.11.0"
   },
