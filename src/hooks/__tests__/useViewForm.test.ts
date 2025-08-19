@@ -157,6 +157,7 @@ describe('useViewForm', () => {
       
       const { result } = renderHook(() => 
         useViewForm<TestFormData>({
+          withoutId: true,
           resolveGet,
           firstLoad: true,
         })
@@ -219,6 +220,7 @@ describe('useViewForm', () => {
       
       renderHook(() => 
         useViewForm<TestFormData>({
+          withoutId: true,
           resolveGet,
           firstLoad: true,
         })
