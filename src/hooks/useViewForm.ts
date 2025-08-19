@@ -28,7 +28,7 @@ export function useViewForm<
   onErrorStarted,
   updateResourceOnSave = false,
   resolveGet,
-  withoutId = true,
+  withoutId = false,
   initialData = {},
   resolveAction,
   resolveCreate,
