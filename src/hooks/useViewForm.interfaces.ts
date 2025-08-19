@@ -89,6 +89,11 @@ export interface IUseViewFormProps<
   ) => Partial<DataForm> | Promise<Partial<DataForm>>;
 
   /**
+   * Se true, não será necessário informar o ID para o resolveGet
+   */
+  withoutId?: boolean;
+
+  /**
    * Resolve para resgatar resource (sem necessidade de ID)
    */
   resolveGet?: TResolveGet;

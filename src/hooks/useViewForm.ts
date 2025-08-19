@@ -28,6 +28,7 @@ export function useViewForm<
   onErrorStarted,
   updateResourceOnSave = false,
   resolveGet,
+  withoutId = true,
   initialData = {},
   resolveAction,
   resolveCreate,
@@ -51,7 +52,7 @@ export function useViewForm<
     resolvesForm.get = () => resolveGet(id);
   }
   // Se houver resolveGet (sem necessidade de ID), usar resolveGet
-  else if (resolveGet) {
+  else if (withoutId && resolveGet) {
     resolvesForm.get = resolveGet;
   }
 
