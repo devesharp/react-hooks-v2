@@ -9,8 +9,7 @@ import {
   SortValue,
 } from "./useViewList.interfaces";
 import { convertObjetToQuery, convertQueryToObject } from "./useViewList.utils";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/router";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLayoutEffect } from "react";
 import { useDidEffect } from "./useDidEffect";
 
