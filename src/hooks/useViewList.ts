@@ -8,6 +8,8 @@ import {
   IUseViewListProps,
   SortValue,
 } from "./useViewList.interfaces";
+import omitBy from "lodash/omitBy";
+import isEqual from "lodash/isEqual";
 import { convertObjetToQuery, convertQueryToObject } from "./useViewList.utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLayoutEffect } from "react";
@@ -32,7 +34,12 @@ function useQueryChange({
   );
 
   useLayoutEffect(() => {
-    const queryStr = convertObjetToQuery(filters);
+    const newFilters = omitBy(
+      filters,
+      (value) => value === "" || value === null
+    );
+
+    const queryStr = convertObjetToQuery(newFilters);
     if (queryStr !== prevQuery.current) {
       prevQuery.current = queryStr;
       nav.replace("?" + prevQuery.current, {
@@ -90,6 +97,26 @@ export function useViewList<
     ...initialFilters,
     ...initialFiltersQuery,
   });
+
+  const [filtersCount, setFiltersCount] = useState(0);
+
+  useLayoutEffect(() => {
+    const filtersRest = omitBy(
+      filters,
+      (value, key2) =>
+        value == null ||
+        (typeof value == "string" && value == "") ||
+        isEqual(
+          value,
+          {
+            offset: "0",
+            sort: initialSort,
+            ...filtersDefaultOriginal,
+          }[key2 as keyof typeof filters]
+        )
+    );
+    setFiltersCount(Object.keys(filtersRest).length);
+  }, [filters]);
 
   /**
    * Guarda o último conjunto de filtros utilizado em uma busca.
@@ -505,6 +532,7 @@ export function useViewList<
     resources,
     resourcesTotal,
     filters,
+    filtersCount,
     limit,
     setFilters,
     nextPage,
