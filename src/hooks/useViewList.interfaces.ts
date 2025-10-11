@@ -48,6 +48,8 @@ export interface IUseViewListProps<
 
   resolveResources: IResolve<IResponseResults<IResource>>;
 
+  useNextRouterParams?: boolean;
+
   /**
    * Função para tratar/transformar a lista de resources retornados
    * pelo resolveResources antes de serem definidos no estado interno.

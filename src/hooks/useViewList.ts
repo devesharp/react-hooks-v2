@@ -8,6 +8,50 @@ import {
   IUseViewListProps,
   SortValue,
 } from "./useViewList.interfaces";
+import { convertObjetToQuery, convertQueryToObject } from "./useViewList.utils";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
+import { useLayoutEffect } from "react";
+import { useDidEffect } from "./useDidEffect";
+
+function useInitialFiltersQuery() {
+  const searchParams = useSearchParams();
+  return convertQueryToObject(searchParams.toString());
+}
+
+function useQueryChange({
+  filters,
+  setFilters,
+}: {
+  filters: Record<string, unknown>;
+  setFilters: (filters: Record<string, unknown>) => Promise<void>;
+}) {
+  const nav = useRouter();
+  const searchParams = useSearchParams();
+  const prevQuery = useRef<string>(
+    convertObjetToQuery(convertQueryToObject(searchParams.toString()))
+  );
+
+  useLayoutEffect(() => {
+    const queryStr = convertObjetToQuery(filters);
+    if (queryStr !== prevQuery.current) {
+      prevQuery.current = queryStr;
+      nav.replace("?" + prevQuery.current, {
+        scroll: false,
+      });
+    }
+  }, [filters]);
+
+  useDidEffect(() => {
+    const queryStr = convertObjetToQuery(
+      convertQueryToObject(searchParams.toString())
+    );
+    if (queryStr !== prevQuery.current) {
+      prevQuery.current = queryStr;
+      setFilters(convertQueryToObject(queryStr));
+    }
+  }, [searchParams.toString()]);
+}
 
 export function useViewList<
   IResource extends { id: string | number } = { id: string | number },
@@ -29,9 +73,15 @@ export function useViewList<
   treatmentResources = (r: IResource[]): IResource[] => r,
   resolves,
   firstLoad = true,
+  useNextRouterParams = false,
 }: IUseViewListProps<IResource, IFilter, TResolves>) {
   const [resources, setResources] = useState<IResource[]>([]);
   const [resourcesTotal, setResourcesTotal] = useState(0);
+
+  const initialFiltersQuery = useNextRouterParams
+    ? useInitialFiltersQuery()
+    : {};
+
   const [filters, _setFilters] = useState<
     { offset: number; sort: SortValue } & Partial<IFilter>
   >({
@@ -39,6 +89,7 @@ export function useViewList<
     sort: initialSort,
     ...filtersDefaultOriginal,
     ...initialFilters,
+    ...initialFiltersQuery,
   });
 
   /**
@@ -46,9 +97,9 @@ export function useViewList<
    * Isso permite que possamos executar `retry()` posteriormente
    * e também reverter o offset caso ocorra erro ao navegar entre páginas.
    */
-  const lastAttemptedFiltersRef = useRef<{ offset: number; sort: SortValue } & Partial<IFilter>>(
-    filters
-  );
+  const lastAttemptedFiltersRef = useRef<
+    { offset: number; sort: SortValue } & Partial<IFilter>
+  >(filters);
 
   const resolvesForm: TResolves & {
     resources: IResolve<IResponseResults<IResource>>;
@@ -165,7 +216,7 @@ export function useViewList<
       // Executa a busca diretamente com os filtros atualizados
       const response = await resolveResources(filtersToApply);
       processSearch(response);
-      
+
       // Chama callback após sucesso
       onAfterSearch?.({
         success: true,
@@ -174,14 +225,14 @@ export function useViewList<
       });
     } catch (err) {
       const errorInstance = err instanceof Error ? err : new Error(String(err));
-      
+
       // Chama callback após erro
       onAfterSearch?.({
         success: false,
         error: errorInstance,
         filters: filtersToApply,
       });
-      
+
       onErrorSearch?.(errorInstance);
     }
   }
@@ -216,7 +267,7 @@ export function useViewList<
     try {
       const response = await resolveResources(filtersToApply);
       processSearch(response);
-      
+
       // Chama callback após sucesso
       onAfterSearch?.({
         success: true,
@@ -233,14 +284,14 @@ export function useViewList<
       });
 
       const errorInstance = err instanceof Error ? err : new Error(String(err));
-      
+
       // Chama callback após erro
       onAfterSearch?.({
         success: false,
         error: errorInstance,
         filters: filtersToApply,
       });
-      
+
       onErrorSearch?.(errorInstance);
     }
   }
@@ -436,6 +487,13 @@ export function useViewList<
         // Se IDs não foram especificados, atualiza todos
         return { ...item, ...partialResource };
       });
+    });
+  }
+
+  if (useNextRouterParams) {
+    useQueryChange({
+      filters,
+      setFilters: (filters) => setFilters(filters as Partial<IFilter>),
     });
   }
 
