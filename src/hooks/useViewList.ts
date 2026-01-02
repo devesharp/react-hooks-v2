@@ -36,7 +36,8 @@ function useQueryChange({
   useLayoutEffect(() => {
     const newFilters = omitBy(
       filters,
-      (value) => value === "" || value === null
+      (value, key) =>
+        value === "" || value === null || (key === "offset" && value == 0)
     );
 
     const queryStr = convertObjetToQuery(newFilters);
@@ -99,6 +100,7 @@ export function useViewList<
   });
 
   const [filtersCount, setFiltersCount] = useState(0);
+  const [filtersOverrides, setFiltersOverrides] = useState<string[]>([]);
 
   useLayoutEffect(() => {
     const filtersRest = omitBy(
@@ -106,6 +108,7 @@ export function useViewList<
       (value, key2) =>
         value == null ||
         (typeof value == "string" && value == "") ||
+        (key2 === "offset" && value == 0) ||
         isEqual(
           value,
           {
@@ -116,6 +119,7 @@ export function useViewList<
         )
     );
     setFiltersCount(Object.keys(filtersRest).length);
+    setFiltersOverrides(Object.keys(filtersRest));
   }, [filters]);
 
   /**
@@ -533,6 +537,7 @@ export function useViewList<
     resourcesTotal,
     filters,
     filtersCount,
+    filtersOverrides,
     limit,
     setFilters,
     nextPage,
