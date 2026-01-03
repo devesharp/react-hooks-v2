@@ -723,6 +723,125 @@ describe('useViewList', () => {
     });
   });
 
+  describe('Lazy loading (infinite scroll)', () => {
+    it('deve fazer append sem duplicar quando lazyLoading=true', async () => {
+      const resolveResources = vi.fn();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          limit: 2,
+          firstLoad: false,
+          lazyLoading: true,
+        })
+      );
+
+      // Recursos iniciais
+      act(() => {
+        result.current.pushResource({ id: 1, name: 'User 1', email: 'u1@test.com', status: 'active' });
+        result.current.pushResource({ id: 2, name: 'User 2', email: 'u2@test.com', status: 'inactive' });
+      });
+      // offset agora deve ser 2
+      expect(result.current.filters.offset).toBe(2);
+
+      // Próxima página deverá usar offset 4 (2 + limit 2) e retornar item duplicado (id 2) e novo (id 3)
+      resolveResources.mockImplementationOnce((filters: { offset: number }) => {
+        expect(filters.offset).toBe(4);
+        return Promise.resolve<IResponseResults<TestResource>>({
+          results: [
+            { id: 2, name: 'User 2', email: 'u2@test.com', status: 'inactive' }, // duplicado
+            { id: 3, name: 'User 3', email: 'u3@test.com', status: 'active' },   // novo
+          ],
+          count: 100,
+        });
+      });
+
+      await act(async () => {
+        result.current.nextPage();
+        await new Promise((r) => setTimeout(r, 30));
+      });
+
+      expect(result.current.resources.map((r) => r.id)).toEqual([1, 2, 3]);
+      expect(result.current.isErrorOnSearchingInfinitScroll).toBe(false);
+    });
+
+    it('deve marcar erro específico de infinite scroll quando falhar', async () => {
+      const resolveResources = vi.fn().mockRejectedValueOnce(new Error('Network error'));
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          limit: 5,
+          firstLoad: false,
+          lazyLoading: true,
+        })
+      );
+
+      // Simula estado com alguns itens e offset atual
+      act(() => {
+        result.current.pushResource({ id: 1, name: 'User 1', email: 'u1@test.com', status: 'active' });
+        result.current.pushResource({ id: 2, name: 'User 2', email: 'u2@test.com', status: 'inactive' });
+      });
+      const initialOffset = result.current.filters.offset; // 2
+
+      await act(async () => {
+        result.current.nextPage();
+        await new Promise((r) => setTimeout(r, 30));
+      });
+
+      // No lazy, marca flag específica e mantém offset já avançado pelo nextPage (2 + limit 5 = 7)
+      expect(result.current.isErrorOnSearchingInfinitScroll).toBe(true);
+      expect(result.current.filters.offset).toBe(initialOffset + 5);
+    });
+  });
+
+  describe('loadNewsResource', () => {
+    function makeResource(id: number): TestResource {
+      return { id, name: `User ${id}`, email: `u${id}@test.com`, status: id % 2 ? 'active' : 'inactive' };
+    }
+
+    it('deve carregar itens novos do offset 0 e ajustar offset pelo número de novos', async () => {
+      const resolveResources = vi.fn().mockImplementation((filters: { offset: number }) => {
+        expect(filters.offset).toBe(0);
+        const all = Array.from({ length: 20 }, (_, i) => makeResource(i + 1));
+        return Promise.resolve<IResponseResults<TestResource>>({
+          results: all,
+          count: 20,
+        });
+      });
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          limit: 10,
+          firstLoad: false,
+        })
+      );
+
+      // Preenche com 10 itens existentes (ids 1..10). Offset deve ir para 10.
+      act(() => {
+        for (let i = 1; i <= 10; i++) {
+          result.current.pushResource(makeResource(i));
+        }
+      });
+      expect(result.current.filters.offset).toBe(10);
+      const initialLen = result.current.resources.length;
+      expect(initialLen).toBe(10);
+
+      await act(async () => {
+        result.current.loadNewsResource();
+        await new Promise((r) => setTimeout(r, 30));
+      });
+
+      // Devem ter sido adicionados 10 novos (11..20), offset atualizado para 20
+      expect(result.current.filters.offset).toBe(20);
+      expect(result.current.resources.length).toBe(20);
+      // Deve conter todos ids 1..20
+      const ids = result.current.resources.map((r) => r.id).sort((a, b) => Number(a) - Number(b));
+      expect(ids).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    });
+  });
+
   describe('Manipulação de recursos', () => {
     let resolveResources: ReturnType<typeof createMockResolveResources>;
     let hookResult: {

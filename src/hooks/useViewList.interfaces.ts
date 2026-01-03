@@ -29,6 +29,7 @@ export interface IStatusInfoViewList extends IStatusInfo {
   isLastPage: boolean;
   isFirstPage: boolean;
   isErrorOnSearching: boolean;
+  isErrorOnSearchingInfinitScroll: boolean;
 }
 
 export interface IUseViewListProps<
@@ -49,6 +50,12 @@ export interface IUseViewListProps<
   resolveResources: IResolve<IResponseResults<IResource>>;
 
   useNextRouterParams?: boolean;
+
+  /**
+   * Quando habilitado, `nextPage()` realiza carregamento incremental (infinite scroll),
+   * fazendo append dos novos items sem remover os atuais e evitando duplicações.
+   */
+  lazyLoading?: boolean;
 
   /**
    * Função para tratar/transformar a lista de resources retornados

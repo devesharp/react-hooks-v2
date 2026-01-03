@@ -75,6 +75,7 @@ export function useViewList<
   limit = 20,
   initialOffset = 0,
   initialSort = null,
+  lazyLoading = false,
   filtersDefault: filtersDefaultOriginal = {},
   initialFilters = {},
   treatmentResources = (r: IResource[]): IResource[] => r,
@@ -144,6 +145,7 @@ export function useViewList<
   >((prevState, newState) => ({ ...prevState, ...newState }), {
     isSearching: true,
     isErrorOnSearching: false,
+    isErrorOnSearchingInfinitScroll: false,
     isLastPage: false,
     isFirstPage: false,
   });
@@ -332,10 +334,77 @@ export function useViewList<
    * (o processo de busca incrementa o offset após obter os resultados).
    */
   function nextPage() {
-    runSearchWithFilters(
-      { ...filters, offset: filters.offset },
-      filters.offset
-    );
+    if (!lazyLoading) {
+      // Mantém comportamento padrão
+      runSearchWithFilters(
+        { ...filters, offset: filters.offset },
+        filters.offset
+      );
+      return;
+    }
+
+    // Modo Lazy Loading (Infinite Scroll): busca próxima página e faz append sem duplicar
+    const nextOffset = filters.offset + limit;
+    const filtersToApply = { ...filters, offset: nextOffset } as {
+      offset: number;
+      sort: SortValue;
+    } & Partial<IFilter>;
+
+    // Memoriza a tentativa para possível retry
+    lastAttemptedFiltersRef.current = filtersToApply;
+
+    // Callbacks e status inicial
+    onBeforeSearch?.(filtersToApply);
+    setStatusInfoList({
+      isSearching: true,
+      isErrorOnSearching: false,
+      isErrorOnSearchingInfinitScroll: false,
+    });
+    const previousFilters = filters;
+    onChangeFilters?.(filtersToApply, previousFilters);
+    _setFilters(filtersToApply);
+
+    Promise.resolve(resolveResources(filtersToApply))
+      .then((response: IResponseResults<IResource>) => {
+        // Deduplicação por id
+        setResources((prev) => {
+          const existingIds = new Set(prev.map((r) => r.id));
+          const newItems = treatmentResources(
+            response.results.filter((item: IResource) => !existingIds.has(item.id))
+          );
+          return [...prev, ...newItems];
+        });
+        setResourcesTotal(response.count);
+
+        setStatusInfoList({
+          isFirstPage: !nextOffset,
+          isLastPage: nextOffset + limit >= response.count,
+          isSearching: false,
+          isErrorOnSearching: false,
+          isErrorOnSearchingInfinitScroll: false,
+        });
+
+        onAfterSearch?.({
+          success: true,
+          data: response,
+          filters: filtersToApply,
+        });
+      })
+      .catch((err: unknown) => {
+        // Não altera offset em caso de erro; marca erro específico de infinite scroll
+        setStatusInfoList({
+          isSearching: false,
+          isErrorOnSearchingInfinitScroll: true,
+        });
+
+        const errorInstance = err instanceof Error ? err : new Error(String(err));
+        onAfterSearch?.({
+          success: false,
+          error: errorInstance,
+          filters: filtersToApply,
+        });
+        onErrorSearch?.(errorInstance);
+      });
   }
 
   /**
@@ -372,6 +441,77 @@ export function useViewList<
    */
   function retry() {
     runSearchWithFilters(lastAttemptedFiltersRef.current, filters.offset);
+  }
+
+  /**
+   * Carrega itens novos iniciando do offset 0. Itens ainda não presentes
+   * serão adicionados no início da lista e o offset atual será incrementado
+   * pela quantidade de itens realmente novos encontrados.
+   */
+  function loadNewsResource() {
+    const filtersToApply = { ...filters, offset: 0 } as {
+      offset: number;
+      sort: SortValue;
+    } & Partial<IFilter>;
+
+    // Callbacks e status inicial
+    onBeforeSearch?.(filtersToApply);
+    setStatusInfoList({
+      isSearching: true,
+      isErrorOnSearching: false,
+      // não é caso de infinite scroll; limpar flag específica
+      isErrorOnSearchingInfinitScroll: false,
+    });
+    const previousFilters = filters;
+    onChangeFilters?.(filtersToApply, previousFilters);
+
+    Promise.resolve(resolveResources(filtersToApply))
+      .then((response: IResponseResults<IResource>) => {
+        let numNew = 0;
+        setResources((prev) => {
+          const existingIds = new Set(prev.map((r) => r.id));
+          const newItems = treatmentResources(
+            response.results.filter((item: IResource) => !existingIds.has(item.id))
+          );
+          numNew = newItems.length;
+          if (numNew === 0) return prev;
+          return [...newItems, ...prev];
+        });
+
+        // Atualiza total conforme backend
+        setResourcesTotal(response.count);
+        // Ajusta offset somando apenas o número de itens novos
+        _setFilters((prev) => ({ ...prev, offset: prev.offset + numNew }));
+
+        const newOffset = filters.offset + numNew;
+        setStatusInfoList({
+          isFirstPage: !newOffset,
+          isLastPage: newOffset + limit >= response.count,
+          isSearching: false,
+          isErrorOnSearching: false,
+          isErrorOnSearchingInfinitScroll: false,
+        });
+
+        onAfterSearch?.({
+          success: true,
+          data: response,
+          filters: filtersToApply,
+        });
+      })
+      .catch((err: unknown) => {
+        setStatusInfoList({
+          isSearching: false,
+          isErrorOnSearching: true,
+        });
+
+        const errorInstance = err instanceof Error ? err : new Error(String(err));
+        onAfterSearch?.({
+          success: false,
+          error: errorInstance,
+          filters: filtersToApply,
+        });
+        onErrorSearch?.(errorInstance);
+      });
   }
 
   /**
@@ -552,5 +692,6 @@ export function useViewList<
     deleteManyResources,
     changePosition,
     putManyResource,
+    loadNewsResource,
   };
 }
