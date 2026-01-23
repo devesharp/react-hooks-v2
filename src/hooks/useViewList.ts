@@ -93,13 +93,13 @@ export function useViewList<
 
   const [filters, _setFilters] = useState<
     { offset: number; sort: SortValue } & Partial<IFilter>
-  >({
+  >(applyHandleFilters({
     offset: initialOffset,
     sort: initialSort,
     ...filtersDefaultOriginal,
     ...initialFilters,
     ...initialFiltersQuery,
-  });
+  }));
 
   const [filtersCount, setFiltersCount] = useState(0);
   const [filtersOverrides, setFiltersOverrides] = useState<string[]>([]);
