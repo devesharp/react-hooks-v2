@@ -85,4 +85,12 @@ export interface IUseViewListProps<
     newFilters: { offset: number; sort: SortValue } & Partial<IFilter>,
     previousFilters: { offset: number; sort: SortValue } & Partial<IFilter>
   ) => void;
+
+  /**
+   * Função para tratar/transformar os filtros antes de serem aplicados.
+   * Permite modificar os filtros antes da busca ser executada.
+   */
+  handleFilters?: (
+    filters: { offset: number; sort: SortValue } & Partial<IFilter>
+  ) => { offset: number; sort: SortValue } & Partial<IFilter>;
 }

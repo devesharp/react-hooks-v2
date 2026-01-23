@@ -189,6 +189,98 @@ describe('useView', () => {
         expect(typeof reloadResult).toBe('object');
       });
     });
+
+    it('deve atualizar isLoading para true ao executar reloadPage', async () => {
+      const userData = { id: 1, name: 'User' };
+      const resolves = { user: () => userData };
+
+      const { result } = renderHook(() => useView({ resolves, firstLoad: false }));
+
+      // Aguarda um pouco para garantir que não está carregando
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      expect(result.current.isLoading).toBe(false);
+
+      // Executa reloadPage
+      act(() => {
+        result.current.reloadPage(false);
+      });
+
+      // Deve ter atualizado isLoading para true
+      expect(result.current.isLoading).toBe(true);
+    });
+  });
+
+  describe('reloadPageSoft', () => {
+    it('deve ter função reloadPageSoft disponível', () => {
+      const { result } = renderHook(() => useView({}));
+
+      expect(typeof result.current.reloadPageSoft).toBe('function');
+    });
+
+    it('deve executar reloadPageSoft sem erro', async () => {
+      const userData = { id: 1, name: 'User' };
+      const resolves = { user: () => userData };
+
+      const { result } = renderHook(() => useView({ resolves, firstLoad: false }));
+
+      await act(async () => {
+        const reloadResult = await result.current.reloadPageSoft(false);
+        expect(typeof reloadResult).toBe('object');
+      });
+    });
+
+    it('não deve atualizar isLoading para true ao executar reloadPageSoft', async () => {
+      const userData = { id: 1, name: 'User' };
+      const resolves = { user: () => userData };
+
+      const { result } = renderHook(() => useView({ resolves, firstLoad: false }));
+
+      // Aguarda um pouco para garantir que não está carregando
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      const isLoadingBefore = result.current.isLoading;
+      expect(isLoadingBefore).toBe(false);
+
+      // Executa reloadPageSoft
+      await act(async () => {
+        await result.current.reloadPageSoft(false);
+      });
+
+      // Não deve ter atualizado isLoading para true
+      expect(result.current.isLoading).toBe(isLoadingBefore);
+    });
+
+    it('deve recarregar os dados mesmo sem atualizar isLoading', async () => {
+      let userData = { id: 1, name: 'User' };
+      const resolves = { user: () => userData };
+
+      const { result } = renderHook(() => useView({ resolves }));
+
+      // Aguarda processamento inicial
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      expect(result.current.resolvesResponse.user).toEqual({ id: 1, name: 'User' });
+      expect(result.current.isLoading).toBe(false);
+
+      // Altera os dados externos
+      userData = { id: 1, name: 'Updated User' };
+
+      // Executa reloadPageSoft
+      await act(async () => {
+        await result.current.reloadPageSoft(false);
+      });
+
+      // Deve ter recarregado os dados
+      expect(result.current.resolvesResponse.user).toEqual({ id: 1, name: 'Updated User' });
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 
   describe('Múltiplos resolvers', () => {

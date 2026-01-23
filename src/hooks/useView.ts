@@ -182,6 +182,34 @@ export function useView<T extends Record<string, IResolve>>({
   }
 
   /**
+   * Recarregar página sem atualizar isLoading para true
+   * Útil para recarregamentos silenciosos que não devem mostrar estado de loading
+   *
+   * @param wait1s Aguardar 1s para debounce
+   */
+  async function reloadPageSoft(
+    wait1s = false
+  ): Promise<Partial<IResolvedValues<T>>> {
+    setResolvesResponse({});
+
+    if (wait1s) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    // Executa os resolves sem atualizar isLoading
+    // Usa _firstLoad=true para processar os resolves, mas não atualiza statusInfo
+    const currentIsLoading = statusInfo.isLoading;
+    const result = await runAllResolver(true);
+    
+    // Restaura o estado de isLoading se estava false antes
+    if (!currentIsLoading) {
+      setStatusInfo({ isLoading: false });
+    }
+    
+    return result;
+  }
+
+  /**
    * Load resolves
    */
   useEffect(() => {
@@ -198,6 +226,7 @@ export function useView<T extends Record<string, IResolve>>({
     setStatusInfo,
     resolvesResponse,
     reloadPage,
+    reloadPageSoft,
     runResolver,
   };
 }

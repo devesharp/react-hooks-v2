@@ -397,6 +397,89 @@ describe('useViewList', () => {
       });
     });
 
+    it('deve aplicar handleFilters antes de usar os filtros', async () => {
+      const resolveResources = createMockResolveResources();
+      const handleFilters = vi.fn((filters) => ({
+        ...filters,
+        newValue: true,
+      }));
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          handleFilters,
+          firstLoad: false,
+        })
+      );
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      expect(handleFilters).toHaveBeenCalled();
+      expect(resolveResources).toHaveBeenCalledWith(
+        expect.objectContaining({
+          offset: 0,
+          sort: null,
+          search: 'test',
+          newValue: true,
+        })
+      );
+    });
+
+    it('deve aplicar handleFilters em todas as operações de filtro', async () => {
+      const resolveResources = createMockResolveResources();
+      const handleFilters = vi.fn((filters) => ({
+        ...filters,
+        processed: true,
+      }));
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          handleFilters,
+          firstLoad: false,
+        })
+      );
+
+      // Testa setFilters
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+      expect(handleFilters).toHaveBeenCalled();
+
+      // Testa setSort
+      handleFilters.mockClear();
+      await act(async () => {
+        result.current.setSort({ column: 'name', direction: 'asc' });
+      });
+      expect(handleFilters).toHaveBeenCalled();
+
+      // Testa nextPage
+      handleFilters.mockClear();
+      await act(async () => {
+        result.current.nextPage();
+      });
+      expect(handleFilters).toHaveBeenCalled();
+
+      // Testa previousPage
+      handleFilters.mockClear();
+      act(() => {
+        result.current.filters.offset = 20;
+      });
+      await act(async () => {
+        result.current.previousPage();
+      });
+      expect(handleFilters).toHaveBeenCalled();
+
+      // Testa setPage
+      handleFilters.mockClear();
+      await act(async () => {
+        result.current.setPage(2);
+      });
+      expect(handleFilters).toHaveBeenCalled();
+    });
+
     it('não deve fazer busca se filtros não mudaram', async () => {
       const resolveResources = createMockResolveResources();
 

@@ -72,6 +72,7 @@ export function useViewList<
   onBeforeSearch,
   onAfterSearch,
   onChangeFilters,
+  handleFilters,
   limit = 20,
   initialOffset = 0,
   initialSort = null,
@@ -154,6 +155,7 @@ export function useViewList<
     statusInfo,
     setStatusInfo,
     reloadPage: reloadPageView,
+    reloadPageSoft: reloadPageSoftView,
     resolvesResponse,
   } = useView<typeof resolvesForm>({
     resolves: resolvesForm,
@@ -197,8 +199,17 @@ export function useViewList<
     });
   }
 
-  function reloadPage() {
-    reloadPageView();
+  function reloadPage(wait1s = false) {
+    reloadPageView(wait1s);
+  }
+
+  /**
+   * Aplica handleFilters se fornecido, caso contrário retorna os filtros sem modificação
+   */
+  function applyHandleFilters(
+    filtersToApply: { offset: number; sort: SortValue } & Partial<IFilter>
+  ): { offset: number; sort: SortValue } & Partial<IFilter> {
+    return handleFilters ? handleFilters(filtersToApply) : filtersToApply;
   }
 
   /**
@@ -212,12 +223,12 @@ export function useViewList<
     options?: { force?: boolean }
   ) {
     // Novo estado de filtros a ser considerado
-    const filtersToApply = {
+    const filtersToApply = applyHandleFilters({
       offset: initialOffset,
       sort: initialSort,
       ...filtersDefaultOriginal,
       ...newFilters,
-    } as { offset: number; sort: SortValue } & Partial<IFilter>;
+    } as { offset: number; sort: SortValue } & Partial<IFilter>);
 
     // Verifica se houve mudança efetiva nos filtros
     const hasChanged =
@@ -277,11 +288,14 @@ export function useViewList<
     filtersToApply: { offset: number; sort: SortValue } & Partial<IFilter>,
     previousOffset: number = filters.offset
   ) {
+    // Aplica handleFilters antes de usar os filtros
+    const processedFilters = applyHandleFilters(filtersToApply);
+    
     // Memoriza a última requisição feita
-    lastAttemptedFiltersRef.current = filtersToApply;
+    lastAttemptedFiltersRef.current = processedFilters;
 
     // Chama callback antes da busca
-    onBeforeSearch?.(filtersToApply);
+    onBeforeSearch?.(processedFilters);
 
     // Define estado de busca iniciada
     setStatusInfoList({
@@ -291,20 +305,20 @@ export function useViewList<
 
     // Chama callback de mudança de filtros
     const previousFilters = filters;
-    onChangeFilters?.(filtersToApply, previousFilters);
+    onChangeFilters?.(processedFilters, previousFilters);
 
     // Atualiza filtros – já ajustamos o offset antes da requisição
-    _setFilters(filtersToApply);
+    _setFilters(processedFilters);
 
     try {
-      const response = await resolveResources(filtersToApply);
+      const response = await resolveResources(processedFilters);
       processSearch(response);
 
       // Chama callback após sucesso
       onAfterSearch?.({
         success: true,
         data: response,
-        filters: filtersToApply,
+        filters: processedFilters,
       });
     } catch (err) {
       // Reverte o offset em caso de falha
@@ -321,7 +335,7 @@ export function useViewList<
       onAfterSearch?.({
         success: false,
         error: errorInstance,
-        filters: filtersToApply,
+        filters: processedFilters,
       });
 
       onErrorSearch?.(errorInstance);
@@ -345,10 +359,10 @@ export function useViewList<
 
     // Modo Lazy Loading (Infinite Scroll): busca próxima página e faz append sem duplicar
     const nextOffset = filters.offset + limit;
-    const filtersToApply = { ...filters, offset: nextOffset } as {
+    const filtersToApply = applyHandleFilters({ ...filters, offset: nextOffset } as {
       offset: number;
       sort: SortValue;
-    } & Partial<IFilter>;
+    } & Partial<IFilter>);
 
     // Memoriza a tentativa para possível retry
     lastAttemptedFiltersRef.current = filtersToApply;
@@ -449,10 +463,10 @@ export function useViewList<
    * pela quantidade de itens realmente novos encontrados.
    */
   function loadNewsResource() {
-    const filtersToApply = { ...filters, offset: 0 } as {
+    const filtersToApply = applyHandleFilters({ ...filters, offset: 0 } as {
       offset: number;
       sort: SortValue;
-    } & Partial<IFilter>;
+    } & Partial<IFilter>);
 
     // Callbacks e status inicial
     onBeforeSearch?.(filtersToApply);
@@ -667,11 +681,16 @@ export function useViewList<
     });
   }
 
+  function reloadPageSoft(wait1s = false) {
+    reloadPageSoftView(wait1s);
+  }
+
   return {
     ...statusInfo,
     ...statusInfoList,
     setStatusInfo,
     reloadPage,
+    reloadPageSoft,
     resolvesResponse,
     resources,
     resourcesTotal,
