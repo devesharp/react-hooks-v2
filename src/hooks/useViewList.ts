@@ -93,13 +93,13 @@ export function useViewList<
 
   const [filters, _setFilters] = useState<
     { offset: number; sort: SortValue } & Partial<IFilter>
-  >(applyHandleFilters({
+  >({
     offset: initialOffset,
     sort: initialSort,
     ...filtersDefaultOriginal,
     ...initialFilters,
     ...initialFiltersQuery,
-  }));
+  });
 
   const [filtersCount, setFiltersCount] = useState(0);
   const [filtersOverrides, setFiltersOverrides] = useState<string[]>([]);
@@ -137,7 +137,7 @@ export function useViewList<
     resources: IResolve<IResponseResults<IResource>>;
   } = {
     ...(resolves ?? ({} as TResolves)),
-    resources: () => resolveResources(filters),
+    resources: () => resolveResources(applyHandleFilters(filters)),
   };
 
   const [statusInfoList, setStatusInfoList] = useImmerReducer<
@@ -223,12 +223,12 @@ export function useViewList<
     options?: { force?: boolean }
   ) {
     // Novo estado de filtros a ser considerado
-    const filtersToApply = applyHandleFilters({
+    const filtersToApply = {
       offset: initialOffset,
       sort: initialSort,
       ...filtersDefaultOriginal,
       ...newFilters,
-    } as { offset: number; sort: SortValue } & Partial<IFilter>);
+    } as { offset: number; sort: SortValue } & Partial<IFilter>;
 
     // Verifica se houve mudança efetiva nos filtros
     const hasChanged =
@@ -257,7 +257,7 @@ export function useViewList<
 
     try {
       // Executa a busca diretamente com os filtros atualizados
-      const response = await resolveResources(filtersToApply);
+      const response = await resolveResources(applyHandleFilters(filtersToApply));
       processSearch(response);
 
       // Chama callback após sucesso
@@ -289,7 +289,7 @@ export function useViewList<
     previousOffset: number = filters.offset
   ) {
     // Aplica handleFilters antes de usar os filtros
-    const processedFilters = applyHandleFilters(filtersToApply);
+    const processedFilters = filtersToApply;
     
     // Memoriza a última requisição feita
     lastAttemptedFiltersRef.current = processedFilters;
@@ -311,7 +311,7 @@ export function useViewList<
     _setFilters(processedFilters);
 
     try {
-      const response = await resolveResources(processedFilters);
+      const response = await resolveResources(applyHandleFilters(processedFilters));
       processSearch(response);
 
       // Chama callback após sucesso
@@ -359,10 +359,10 @@ export function useViewList<
 
     // Modo Lazy Loading (Infinite Scroll): busca próxima página e faz append sem duplicar
     const nextOffset = filters.offset + limit;
-    const filtersToApply = applyHandleFilters({ ...filters, offset: nextOffset } as {
+    const filtersToApply = { ...filters, offset: nextOffset } as {
       offset: number;
       sort: SortValue;
-    } & Partial<IFilter>);
+    } & Partial<IFilter>;
 
     // Memoriza a tentativa para possível retry
     lastAttemptedFiltersRef.current = filtersToApply;
@@ -378,7 +378,7 @@ export function useViewList<
     onChangeFilters?.(filtersToApply, previousFilters);
     _setFilters(filtersToApply);
 
-    Promise.resolve(resolveResources(filtersToApply))
+    Promise.resolve(resolveResources(applyHandleFilters(filtersToApply)))
       .then((response: IResponseResults<IResource>) => {
         // Deduplicação por id
         setResources((prev) => {
@@ -463,10 +463,10 @@ export function useViewList<
    * pela quantidade de itens realmente novos encontrados.
    */
   function loadNewsResource() {
-    const filtersToApply = applyHandleFilters({ ...filters, offset: 0 } as {
+    const filtersToApply = { ...filters, offset: 0 } as {
       offset: number;
       sort: SortValue;
-    } & Partial<IFilter>);
+    } & Partial<IFilter>;
 
     // Callbacks e status inicial
     onBeforeSearch?.(filtersToApply);
@@ -479,7 +479,7 @@ export function useViewList<
     const previousFilters = filters;
     onChangeFilters?.(filtersToApply, previousFilters);
 
-    Promise.resolve(resolveResources(filtersToApply))
+    Promise.resolve(resolveResources(applyHandleFilters(filtersToApply)))
       .then((response: IResponseResults<IResource>) => {
         let numNew = 0;
         setResources((prev) => {
