@@ -160,6 +160,7 @@ export function useViewForm<
   }
 
   function onErrorStartedForm(error: { [K in keyof TResolves]?: Error }) {
+    console.error(error);
     if (error.get) {
       // Verificar se é erro do Axios
       if (
@@ -167,7 +168,10 @@ export function useViewForm<
         // Verificar se é erro do Fetch
         (error.get instanceof Response && error.get.status === 404) ||
         // Verificar se tem propriedade status_code customizada
-        (error.get as unknown as { status_code: number }).status_code === 404
+        (error.get as unknown as { status_code: number }).status_code === 404 ||
+        // Verificar se tem propriedade status_code customizada
+        (error.get as unknown as { response: { status_code: number } }).response.status_code === 404 ||
+        (error.get as unknown as { response: { status: number } }).response.status === 404
       ) {
         setStatusInfoForm({
           isSaving: false,
@@ -179,7 +183,9 @@ export function useViewForm<
       if (
         (isAxiosError(error.get) && error.get.response?.status === 401) ||
         (error.get instanceof Response && error.get.status === 401) ||
-        (error.get as unknown as { status_code: number }).status_code === 401
+        (error.get as unknown as { status_code: number }).status_code === 401 ||
+        (error.get as unknown as { response: { status_code: number } }).response.status_code === 401 ||
+        (error.get as unknown as { response: { status: number } }).response.status === 401
       ) {
         setStatusInfoForm({
           isSaving: false,
@@ -187,6 +193,7 @@ export function useViewForm<
           isNotAuthorization: true,
         });
       }
+      
     }
   }
 

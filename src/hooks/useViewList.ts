@@ -268,6 +268,7 @@ export function useViewList<
       });
     } catch (err) {
       const errorInstance = err instanceof Error ? err : new Error(String(err));
+      console.error(err);
 
       // Chama callback após erro
       onAfterSearch?.({
@@ -321,8 +322,11 @@ export function useViewList<
         filters: processedFilters,
       });
     } catch (err) {
+      console.error(err);
+      
       // Reverte o offset em caso de falha
       _setFilters((prev) => ({ ...prev, offset: previousOffset }));
+
 
       setStatusInfoList({
         isSearching: false,
@@ -405,6 +409,8 @@ export function useViewList<
         });
       })
       .catch((err: unknown) => {
+        console.error(err);
+
         // Não altera offset em caso de erro; marca erro específico de infinite scroll
         setStatusInfoList({
           isSearching: false,
@@ -513,6 +519,8 @@ export function useViewList<
         });
       })
       .catch((err: unknown) => {
+        console.error(err);
+
         setStatusInfoList({
           isSearching: false,
           isErrorOnSearching: true,

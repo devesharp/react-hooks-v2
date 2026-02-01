@@ -7,6 +7,7 @@ import {
   IResolvedValues,
   IExtractResolverType,
 } from "./useView.interfaces";
+import { ApiError } from "../utils/apiResponseError";
 
 export function useView<T extends Record<string, IResolve>>({
   resolves: resolvesOriginal,
@@ -45,45 +46,53 @@ export function useView<T extends Record<string, IResolve>>({
     isCriticalError: false,
   });
 
-  const runResolver = useCallback(async (key: keyof T, updateResolvesResponse = true) => {
-    try {
-      const resolver = resolves.current?.[key];
+  const runResolver = useCallback(
+    async (key: keyof T, updateResolvesResponse = true) => {
+      try {
+        const resolver = resolves.current?.[key];
 
-      if (!resolver) {
-        throw new Error(`Resolver ${String(key)} not found`);
-      }
-
-      let result: unknown;
-
-      // Se é uma Promise direta
-      if (resolver instanceof Promise) {
-        result = await resolver;
-      }
-      // Se é uma função
-      else if (typeof resolver === "function") {
-        const functionResult = resolver();
-        // Se a função retorna uma Promise
-        if (functionResult instanceof Promise) {
-          result = await functionResult;
-        } else {
-          result = functionResult;
+        if (!resolver) {
+          throw new Error(`Resolver ${String(key)} not found`);
         }
-      }
 
-      if (updateResolvesResponse) {
-        setResolvesResponse((draft) => ({
-          ...(draft as Partial<IResolvedValues<T>>),
-          [key]: result,
-        }));
-      }
+        let result: unknown;
 
-      return result;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      
-      throw err;
-    }
-  }, []);
+        // Se é uma Promise direta
+        if (resolver instanceof Promise) {
+          result = await resolver;
+        }
+        // Se é uma função
+        else if (typeof resolver === "function") {
+          const functionResult = resolver();
+          // Se a função retorna uma Promise
+          if (functionResult instanceof Promise) {
+            result = await functionResult;
+          } else {
+            result = functionResult;
+          }
+        }
+
+        if (updateResolvesResponse) {
+          setResolvesResponse((draft) => ({
+            ...(draft as Partial<IResolvedValues<T>>),
+            [key]: result,
+          }));
+        }
+
+        return result;
+      } catch (error) {
+        const err =
+          error instanceof Error
+            ? error
+            : typeof error === "string"
+              ? new Error(error)
+              : new ApiError(error, (error as { message?: string })?.message ?? "Error");
+
+        throw err;
+      }
+    },
+    [],
+  );
 
   /**
    * Controla se o carregamento inicial já foi executado
@@ -154,7 +163,13 @@ export function useView<T extends Record<string, IResolve>>({
 
       return successfulResults;
     },
-    [runResolver, setResolvesResponse, onStarted, onErrorStarted, setStatusInfo]
+    [
+      runResolver,
+      setResolvesResponse,
+      onStarted,
+      onErrorStarted,
+      setStatusInfo,
+    ],
   );
 
   /**
@@ -163,7 +178,7 @@ export function useView<T extends Record<string, IResolve>>({
    * @param wait1s Aguardar 1s para debounce
    */
   async function reloadPage(
-    wait1s = true
+    wait1s = true,
   ): Promise<Partial<IResolvedValues<T>>> {
     setStatusInfo({
       isLoading: true,
@@ -188,9 +203,9 @@ export function useView<T extends Record<string, IResolve>>({
    * @param wait1s Aguardar 1s para debounce
    */
   async function reloadPageSoft(
-    wait1s = false
+    wait1s = false,
   ): Promise<Partial<IResolvedValues<T>>> {
-    setResolvesResponse({});
+    // setResolvesResponse({});
 
     if (wait1s) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -200,12 +215,12 @@ export function useView<T extends Record<string, IResolve>>({
     // Usa _firstLoad=true para processar os resolves, mas não atualiza statusInfo
     const currentIsLoading = statusInfo.isLoading;
     const result = await runAllResolver(true);
-    
+
     // Restaura o estado de isLoading se estava false antes
     if (!currentIsLoading) {
       setStatusInfo({ isLoading: false });
     }
-    
+
     return result;
   }
 
