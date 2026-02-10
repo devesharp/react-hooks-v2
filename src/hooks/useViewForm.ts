@@ -69,6 +69,7 @@ export function useViewForm<
     statusInfo,
     setStatusInfo,
     reloadPage: reloadPageView,
+    reloadPageSoft: reloadPageSoftView,
     resolvesResponse,
     runResolver,
   } = useView<typeof resolvesForm>({
@@ -400,6 +401,10 @@ export function useViewForm<
     [reloadPageView, setStatusInfoForm]
   );
 
+  function reloadPageSoft(wait1s = false) {
+    reloadPageSoftView(wait1s) as Partial<IResolvedValues<TResolves>>;
+  }
+
   /**
    * Reset quando ID muda (resistente ao hot reload)
    * Só executa quando há uma mudança real no ID, não durante hot reload
@@ -421,6 +426,7 @@ export function useViewForm<
     statusInfo,
     setStatusInfo,
     reloadPage,
+    reloadPageSoft,
     checkErrors,
     initialData,
     resource,
