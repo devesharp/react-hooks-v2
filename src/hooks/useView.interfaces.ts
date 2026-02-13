@@ -1,3 +1,5 @@
+import { ApiError } from "../utils/apiResponseError";
+
 // Tipo para diferentes tipos de resolvers
 type ResolverFunction<T = unknown, T2 extends unknown[] = unknown[]> = (...args: T2) => T | Promise<T>;
 type ResolverPromise<T = unknown, T2 extends unknown[] = unknown[]> = (...args: T2) => Promise<T>;
@@ -35,7 +37,7 @@ export interface IUseViewProps<T extends Record<string, IResolve | undefined>> {
   /**
    * Função que será chamada quando o carregamento dos resolves for finalizado com erro
    */
-  onErrorStarted?: (v: { [K in keyof T]?: Error }) => void;
+  onErrorStarted?: (v: { [K in keyof T]?: ApiError | Error }) => void;
   onErrorSearch?: (v: Error) => void;
 }
 
