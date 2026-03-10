@@ -1,3 +1,4 @@
+import { Dispatch, SetStateAction } from "react";
 import { ApiError } from "../utils/apiResponseError";
 
 // Tipo para diferentes tipos de resolvers
@@ -63,6 +64,11 @@ export interface IStatusInfo {
    * @deprecated Use isCriticalError instead.
    */
   isCriticalError?: boolean;
+}
+
+export interface IControlled<IResource = unknown> {
+  resources: IResource[];
+  setResources: Dispatch<SetStateAction<IResource[]>>;
 }
 
 

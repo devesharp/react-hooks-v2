@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, Dispatch, SetStateAction } from "react";
 import cloneDeep from "clone-deep";
 import isPromise from "is-promise";
 import { useImmer, useImmerReducer } from "use-immer";
@@ -41,6 +41,7 @@ export function useViewForm<
   handleInsertForm = (v) => v as Partial<DataForm>,
   resolves = {} as TResolves,
   firstLoad = true,
+  controlled = null
 }: IUseViewFormProps<DataForm, IDType, TResolves, TResolveGet>) {
   // Montar resolves do formulário
   const resolvesForm: TResolves & {
@@ -90,7 +91,9 @@ export function useViewForm<
   /**
    * Dado original só é alterado no load, reload do hook
    */
-  const [resource, setResource] = useImmer<Partial<DataForm>>(initialData);
+  const [_resource, _setResource] = useImmer<Partial<DataForm>>(initialData);
+  const resource = controlled ? controlled.resource : _resource;
+  const setResource = controlled ? controlled.setResource : _setResource as Dispatch<SetStateAction<Partial<DataForm>>>;
   const [originalResource, setOriginalResource] = useImmer<Partial<IExtractResolverType<TResolveGet>>>(
     {}
   );
@@ -146,7 +149,7 @@ export function useViewForm<
 
   function onStartedForm(get?: IExtractResolverType<TResolveGet>) {
     if (get) {
-      setResource(() => handleInsertForm({ ...get }));
+      setResource(() => handleInsertForm({ ...get }) as Partial<DataForm>);
       setOriginalResource(() => ({ ...(get ?? {}) } as DataForm));
     } else {
       setResource(() => initialData);
@@ -339,7 +342,7 @@ export function useViewForm<
               setResource(() =>
                 handleInsertForm(
                   resultAction as IExtractResolverType<TResolveGet>
-                )
+                ) as Partial<DataForm>
               );
               setOriginalResource(
                 () => resultAction as IExtractResolverType<TResolveGet>

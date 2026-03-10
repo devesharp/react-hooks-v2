@@ -1,3 +1,4 @@
+import { Dispatch, SetStateAction } from "react";
 import {
   IStatusInfo,
   IResolve,
@@ -5,6 +6,12 @@ import {
   IExtractResolverType,
 } from "./useView.interfaces";
 // import * as Yup from 'yup';
+
+/** Controle externo do resource do formulário (singular) */
+export interface IControlledForm<DataForm = unknown> {
+  resource: Partial<DataForm>;
+  setResource: Dispatch<SetStateAction<Partial<DataForm>>>;
+}
 
 export interface NestedErrors {
   [key: string]: string | NestedErrors;
@@ -61,7 +68,7 @@ export interface IUseViewFormProps<
   TResolves extends Record<string, IResolve> = Record<string, IResolve>,
   TResolveGet extends IResolve = IResolve
 > extends IUseViewProps<TResolves> {
-  
+  controlled?: IControlledForm<DataForm> | null;
   /**
    * Id do resource
    *

@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useViewForm } from '../useViewForm';
-import { IUseViewFormProps } from '../useViewForm.interfaces';
+import { IControlledForm } from '../useViewForm.interfaces';
 
 // Mock para use-immer - versão simplificada que funciona
 vi.mock('use-immer', async () => {
@@ -52,7 +53,9 @@ vi.mock('../useView', () => ({
       },
       setStatusInfo: vi.fn(),
       reloadPage: vi.fn().mockResolvedValue({}),
+      reloadPageSoft: vi.fn(),
       resolvesResponse: {},
+      runResolver: vi.fn(),
     };
   }),
 }));
@@ -812,6 +815,109 @@ describe('useViewForm', () => {
       // Verifica se o hook foi inicializado
       expect(typeof result.current.statusInfo).toBe('object');
       expect(typeof result.current.setStatusInfo).toBe('function');
+    });
+  });
+
+  describe('Modo controlled', () => {
+    it('deve usar resource e setResource do controlled quando fornecido', () => {
+      const controlledData = { name: 'Controlled', email: 'controlled@test.com' };
+
+      const { result } = renderHook(() => {
+        const [resource, setResource] = useState<Partial<TestFormData>>(controlledData);
+        const controlled: IControlledForm<TestFormData> = { resource, setResource };
+        return useViewForm<TestFormData>({
+          controlled,
+        });
+      });
+
+      expect(result.current.resource).toEqual(controlledData);
+      expect(result.current.getField('name')).toBe('Controlled');
+      expect(result.current.getField('email')).toBe('controlled@test.com');
+    });
+
+    it('deve atualizar o estado controlado quando setField é chamado', () => {
+      const initialData = { name: 'Initial', email: 'initial@test.com' };
+
+      const { result } = renderHook(() => {
+        const [resource, setResource] = useState<Partial<TestFormData>>(initialData);
+        const controlled: IControlledForm<TestFormData> = { resource, setResource };
+        return useViewForm<TestFormData>({
+          controlled,
+        });
+      });
+
+      act(() => {
+        result.current.setField('name', 'Modificado');
+      });
+
+      expect(result.current.resource).toEqual({
+        name: 'Modificado',
+        email: 'initial@test.com',
+      });
+      expect(result.current.getField('name')).toBe('Modificado');
+    });
+
+    it('deve atualizar o estado controlado quando setData é chamado', () => {
+      const initialData = { name: 'Initial', email: 'initial@test.com' };
+      const newData = { name: 'Novo', email: 'novo@test.com' };
+
+      const { result } = renderHook(() => {
+        const [resource, setResource] = useState<Partial<TestFormData>>(initialData);
+        const controlled: IControlledForm<TestFormData> = { resource, setResource };
+        return useViewForm<TestFormData>({
+          controlled,
+        });
+      });
+
+      act(() => {
+        result.current.setData(newData);
+      });
+
+      expect(result.current.resource).toEqual(newData);
+      expect(result.current.getData()).toEqual(newData);
+    });
+
+    it('deve atualizar o estado controlado quando resolveGet carrega dados', async () => {
+      const userData = { id: 123, name: 'João', email: 'joao@test.com' };
+      const resolveGet = vi.fn().mockResolvedValue(userData);
+
+      const { result } = renderHook(() => {
+        const [resource, setResource] = useState<Partial<TestFormData>>({});
+        const controlled: IControlledForm<TestFormData> = { resource, setResource };
+        return useViewForm<TestFormData, number>({
+          id: 123,
+          resolveGet,
+          controlled,
+          firstLoad: true,
+        });
+      });
+
+      await waitFor(() => {
+        expect(resolveGet).toHaveBeenCalledWith(123);
+      });
+
+      await waitFor(() => {
+        expect(result.current.resource).toEqual(userData);
+      });
+    });
+
+    it('deve usar estado interno quando controlled é null', () => {
+      const initialData = { name: 'Test', email: 'test@test.com' };
+
+      const { result } = renderHook(() =>
+        useViewForm<TestFormData>({
+          controlled: null,
+          initialData,
+        })
+      );
+
+      expect(result.current.resource).toEqual(initialData);
+
+      act(() => {
+        result.current.setField('name', 'Modificado');
+      });
+
+      expect(result.current.getField('name')).toBe('Modificado');
     });
   });
 
