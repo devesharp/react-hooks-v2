@@ -1,3 +1,4 @@
+import { Dispatch, SetStateAction } from "react";
 import { IUseViewProps, IStatusInfo, IResolve } from "./useView.interfaces";
 
 /**
@@ -32,11 +33,19 @@ export interface IStatusInfoViewList extends IStatusInfo {
   isErrorOnSearchingInfinitScroll: boolean;
 }
 
+export interface IControlled<IResource = unknown> {
+  resources: IResource[];
+  setResources: Dispatch<SetStateAction<IResource[]>>;
+}
+
 export interface IUseViewListProps<
   IResource = unknown,
   IFilter = unknown,
   TResolves extends Record<string, IResolve> = Record<string, IResolve>
 > extends IUseViewProps<TResolves> {
+
+  controlled?: IControlled<IResource> | null;
+
   limit?: number;
 
   initialOffset?: number;

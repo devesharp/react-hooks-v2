@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useViewList } from '../useViewList';
-import { IResponseResults, SortValue } from '../useViewList.interfaces';
+import { IResponseResults, IControlled, SortValue } from '../useViewList.interfaces';
 
 // Mock para use-immer - versão simplificada que funciona
 vi.mock('use-immer', async () => {
@@ -1122,6 +1123,129 @@ describe('useViewList', () => {
       expect(result.current).toHaveProperty('isLastPage');
       expect(result.current).toHaveProperty('isSearching');
       expect(result.current).toHaveProperty('isErrorOnSearching');
+    });
+  });
+
+  describe('Modo controlled', () => {
+    it('deve usar resources e setResources do controlled quando fornecido', async () => {
+      const resolveResources = createMockResolveResources();
+      const controlledResources: TestResource[] = [
+        { id: 99, name: 'Controlled 1', email: 'c1@test.com', status: 'active' },
+        { id: 100, name: 'Controlled 2', email: 'c2@test.com', status: 'inactive' },
+      ];
+
+      const { result } = renderHook(() => {
+        const [resources, setResources] = useState<TestResource[]>(controlledResources);
+        const controlled: IControlled<TestResource> = { resources, setResources };
+        return useViewList<TestResource, TestFilter>({
+          resolveResources,
+          controlled,
+          firstLoad: false,
+        });
+      });
+
+      // Deve retornar os resources do controlled, não os internos
+      expect(result.current.resources).toEqual(controlledResources);
+      expect(result.current.resources).toHaveLength(2);
+      expect(result.current.resources[0].name).toBe('Controlled 1');
+    });
+
+    it('deve atualizar o estado controlado quando setFilters é chamado e busca retorna dados', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() => {
+        const [resources, setResources] = useState<TestResource[]>([]);
+        const controlled: IControlled<TestResource> = { resources, setResources };
+        return useViewList<TestResource, TestFilter>({
+          resolveResources,
+          controlled,
+          firstLoad: false,
+        });
+      });
+
+      expect(result.current.resources).toEqual([]);
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      // Deve ter atualizado os resources do controlled com os resultados da busca
+      expect(result.current.resources).toHaveLength(3);
+      expect(result.current.resources).toEqual(mockResources);
+    });
+
+    it('deve atualizar o estado controlado quando pushResource é chamado', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() => {
+        const [resources, setResources] = useState<TestResource[]>([]);
+        const controlled: IControlled<TestResource> = { resources, setResources };
+        return useViewList<TestResource, TestFilter>({
+          resolveResources,
+          controlled,
+          firstLoad: false,
+        });
+      });
+
+      const newResource: TestResource = {
+        id: 99,
+        name: 'Novo User',
+        email: 'novo@test.com',
+        status: 'active',
+      };
+
+      act(() => {
+        result.current.pushResource(newResource);
+      });
+
+      expect(result.current.resources).toHaveLength(1);
+      expect(result.current.resources[0]).toEqual(newResource);
+    });
+
+    it('deve atualizar o estado controlado quando deleteResource é chamado', async () => {
+      const resolveResources = createMockResolveResources();
+      const initialResources = [
+        { id: 1, name: 'User 1', email: 'u1@test.com', status: 'active' as const },
+        { id: 2, name: 'User 2', email: 'u2@test.com', status: 'inactive' as const },
+      ];
+
+      const { result } = renderHook(() => {
+        const [resources, setResources] = useState<TestResource[]>(initialResources);
+        const controlled: IControlled<TestResource> = { resources, setResources };
+        return useViewList<TestResource, TestFilter>({
+          resolveResources,
+          controlled,
+          firstLoad: false,
+        });
+      });
+
+      act(() => {
+        result.current.deleteResource(1);
+      });
+
+      expect(result.current.resources).toHaveLength(1);
+      expect(result.current.resources[0].id).toBe(2);
+    });
+
+    it('deve usar estado interno quando controlled é null', async () => {
+      const resolveResources = createMockResolveResources();
+
+      const { result } = renderHook(() =>
+        useViewList<TestResource, TestFilter>({
+          resolveResources,
+          controlled: null,
+          firstLoad: false,
+        })
+      );
+
+      expect(result.current.resources).toEqual([]);
+
+      await act(async () => {
+        await result.current.setFilters({ search: 'test' });
+      });
+
+      // Deve ter atualizado o estado interno
+      expect(result.current.resources).toHaveLength(3);
     });
   });
 

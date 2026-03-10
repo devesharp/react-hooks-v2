@@ -83,8 +83,12 @@ export function useViewList<
   resolves,
   firstLoad = true,
   useNextRouterParams = false,
+  controlled = null
 }: IUseViewListProps<IResource, IFilter, TResolves>) {
-  const [resources, setResources] = useState<IResource[]>([]);
+  const [_resources, _setResources] = useState<IResource[]>([]);
+  const resources = controlled ? controlled.resources : _resources;
+  const setResources = controlled ? controlled.setResources : _setResources;
+
   const [resourcesTotal, setResourcesTotal] = useState(0);
 
   const initialFiltersQuery = useNextRouterParams
