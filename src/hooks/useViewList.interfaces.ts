@@ -1,4 +1,4 @@
-import { IControlled } from "./useView.interfaces";
+import { Dispatch, SetStateAction } from "react";
 import { IUseViewProps, IStatusInfo, IResolve } from "./useView.interfaces";
 
 /**
@@ -31,6 +31,11 @@ export interface IStatusInfoViewList extends IStatusInfo {
   isFirstPage: boolean;
   isErrorOnSearching: boolean;
   isErrorOnSearchingInfinitScroll: boolean;
+}
+
+export interface IControlled<IResource = unknown> {
+  resources: IResource[];
+  setResources: Dispatch<SetStateAction<IResource[]>>;
 }
 
 export interface IUseViewListProps<

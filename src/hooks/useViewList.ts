@@ -274,6 +274,11 @@ export function useViewList<
       const errorInstance = err instanceof Error ? err : new Error(String(err));
       console.error(err);
 
+      setStatusInfoList({
+        isSearching: false,
+        isErrorOnSearching: true,
+      });
+
       // Chama callback após erro
       onAfterSearch?.({
         success: false,
